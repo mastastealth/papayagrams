@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <header :data-peel="peeling">
+    <header :data-peel="peeling" :data-dump="dumpMode">
       <h1>Papayagrams</h1>
 
       <aside>
@@ -62,20 +62,25 @@
       </div>
     </main>
 
-    <footer>
+    <footer v-if="players.length > 0 ">
       <button
-        v-if="isHosting && players.length > 0 && pile.length === 144"
+        v-if="isHosting && pile.length === 144"
         @click="split"
       >Split</button>
       <button
-        v-if="players.length > 0 && mypile.length > 0 && pile.length >= players.length"
+        v-if="mypile.length > 0 && pile.length >= players.length"
         @click="peel(false)"
         :disabled="peeling"
       >Peel</button>
       <button
-        v-if="players.length > 0 && mypile.length > 0 && pile.length < players.length"
+        v-if="mypile.length > 0 && pile.length < players.length"
         @click="papaya(false)"
       >Papaya</button>
+      <button
+        v-if="mypile.length > 0 && pile.length >= 3"
+        @click="dumpMode = !dumpMode"
+        style="background: var(--red);"
+      >Dump</button>
     </footer>
   </div>
 </template>
@@ -134,6 +139,7 @@ export default {
       peeling: false,
       dboard: [],
       finished: false,
+      dumpMode: false,
     };
   },
   methods: {
@@ -247,7 +253,7 @@ export default {
 
       console.log(this.pile);
     },
-    split() {
+    async split() {
       if (this.isHosting) {
         // Send player list to everyone on split
         this.conn.forEach((c) => {
@@ -277,8 +283,8 @@ export default {
       console.log(this.players, this.mypile, this.otherpiles);
 
       // Fix scroll area so we can't jack it up later
-      setTimeout(() => {
-        const myScroll = document.querySelector('.scroll');
+      await this.$nextTick();
+      const myScroll = this.$refs.playerScroll;
         this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
       }, 300);
     },
@@ -433,7 +439,7 @@ header {
   &:before {
     background: var(--yellow);
     color: black;
-    content: 'PEEL!';
+    content: ' ';
     font-size: 3em;
     height: 100%;
     position: absolute;
@@ -445,6 +451,14 @@ header {
   }
 
   &[data-peel]:before {
+    background: var(--yellow);
+    content: 'PEEL!';
+    transform: translateY(0);
+  }
+
+  &[data-dump]:before {
+    background: var(--red);
+    content: 'Select a letter to DUMP.';
     transform: translateY(0);
   }
 }
@@ -584,6 +598,7 @@ footer {
   width: 100%;
 
   button {
+    margin: 0 5px;
     padding: 10px 50px;
   }
 }
