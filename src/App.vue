@@ -4,13 +4,8 @@
       <h1>Papayagrams</h1>
 
       <aside>
-        <button @click="host">Host</button> - {{lobby || "No Lobby"}}
-        <template v-if="!isHosting">
-          <button @click="join">Join</button> - <input type="text" v-model="lobby" maxlength="5">
-        </template>
-        <template v-if="isHosting && players.length > 0 && pile.length === 144">
-          <button @click="split">Split</button>
-        </template>
+        <span v-if="lobby"><strong>{{lobby}}</strong> - </span>
+        <span class="letter">A</span> × {{pile.length}}
       </aside>
     </header>
 
@@ -23,6 +18,7 @@
             class="fruit"
             :data-color="player.split(' ')[0]"
             :data-fruit="player.split(' ')[1]"
+            :data-isme="whoami == player"
           >{{player}}</span>
         </template>
         <template v-else>
@@ -44,12 +40,31 @@
           </div>
         </div>
         <div v-else class="empty">
-          <span v-if="!conn || mypile.length">No papayas.</span>
+          <div v-if="!conn || mypile.length">
+            <button @click="host">Host</button>
+
+            <template v-if="!isHosting">
+              <input type="text" v-model="lobby" maxlength="5">
+              <button @click="join">Join</button>
+            </template>
+          </div>
           <span v-if="conn && pile.length === 0">Waiting for papayas...</span>
           <span v-if="conn && pile.length">Papayas Ready.</span>
         </div>
       </div>
     </main>
+
+    <footer>
+      <button
+        v-if="isHosting && players.length > 0 && pile.length === 144"
+        @click="split"
+      >Split</button>
+      <button
+        v-if="players.length > 0 && mypile.length > 0"
+        @click="peel(false)"
+        :disabled="peeling"
+      >Peel</button>
+    </footer>
   </div>
 </template>
 
@@ -103,6 +118,7 @@ export default {
       whoami: null,
       colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple'],
       fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon'],
+      peeling: false,
     };
   },
   methods: {
@@ -132,16 +148,19 @@ export default {
 
       conn.on('open', () => {
         conn.send({ key: 'connected' });
-        setTimeout(() => {
-          if (!this.pile.length) {
-            this.peer.destroy();
-          }
-        }, 5000);
       });
 
       conn.on('data', (data) => {
         this.gotData(conn, data);
       });
+
+      setTimeout(() => {
+        if (this.pile.length === 0) {
+          console.warn('Connection failed.');
+          this.peer.destroy();
+          this.resetMP();
+        }
+      }, 5000);
     },
     gotData(conn, data) {
       console.log('Data received.', data);
@@ -163,15 +182,27 @@ export default {
           this.pile = data.data;
           conn.send({ key: 'success', data: this.whoami });
           break;
+        case 'players':
+          this.players = [...data.data];
+          break;
         case 'split':
           this.split();
           break;
-        case 'players':
-          this.players = [...data.data];
+        case 'peel':
+          if (data.data === 'nothost') this.peel();
+          if (data.data === 'host') this.peel(true);
           break;
         default:
           break;
       }
+    },
+    resetMP() {
+      this.conn = null;
+      this.peer = null;
+      this.lobby = null;
+      this.isHosting = false;
+      this.players = [];
+      this.whoami = null;
     },
     makeName() {
       const n = Math.floor(Math.random() * Math.floor(6));
@@ -229,6 +260,35 @@ export default {
         this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
       }, 300);
     },
+    peel(receive = false) {
+      this.peeling = true;
+
+      if (receive) {
+        this.players.forEach((p) => {
+          if (p === this.whoami) {
+            this.mypile.push(this.pile.pop());
+          } else {
+            this.otherpiles[p].push(this.pile.pop());
+          }
+        });
+
+        this.peeling = false;
+      }
+
+      if (!receive) {
+        // Send out call to peel
+        if (this.isHosting) {
+          this.conn.forEach((c) => {
+            c.send({ key: 'peel', data: 'host' });
+          });
+
+          this.peel(true);
+        } else {
+          // Tell host to peel for you
+          this.conn.send({ key: 'peel', data: 'nothost' });
+        }
+      }
+    },
   },
 };
 </script>
@@ -240,6 +300,8 @@ export default {
   --red: #FF403E;
   --white: #FBF0D2;
   --green: #B4C919;
+  --blue: rgb(25, 131, 201);
+  --purple: rgb(81, 25, 201);
 }
 
 * {
@@ -271,11 +333,23 @@ body {
 }
 
 button {
+  background: var(--orange);
+  border: 1px solid darkred;
+  border-radius: 5px;
+  color: white;
+  font-size: 1.5rem;
   padding: 10px 20px;
+
+  &[disabled] {
+    background: #999;
+    border-color: #666;
+    opacity: 0.75;
+  }
 }
 
 header {
   background: var(--green);
+  box-shadow: 0 0 5px rgb(100, 66, 3);
   color: var(--white);
   display: flex;
   grid-area: header;
@@ -288,7 +362,7 @@ header {
   aside {
     align-items: center;
     display: flex;
-    font-weight: bold;
+    font-size: 1.25em;
     justify-self: flex-end;
     margin-left: auto;
   }
@@ -312,6 +386,9 @@ main {
     display: inline-block;
     margin-right: 3px;
     padding: 5px 10px;
+    text-transform: uppercase;
+
+    &[data-isme]:after { content: '🌟'; margin-left: 5px; }
 
     &[data-color="red"] {
       background: var(--red);
@@ -331,13 +408,12 @@ main {
     }
 
     &[data-color="blue"] {
-      background: blue;
+      background: var(--blue);
       border: 1px solid darkblue;
     }
 
     &[data-color="purple"] {
-      background: purple;
-      border: 1px solid darkpurple;
+      background: var(--purple);
     }
   }
 }
@@ -346,8 +422,8 @@ main {
   background: var(--white);
   border: 1px solid var(--orange);
   border-radius: 2px;
+  color: black;
   display: inline-block;
-  font-size: bold;
   height: 24px;
   line-height: 24px;
   margin: 2px 5px;
@@ -372,6 +448,22 @@ main {
     width: 100%;
   }
 
+  input, button {
+    display: block;
+    font-size: 1.5rem;
+    height: 50px;
+    width: 300px;
+  }
+
+  input {
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  button {
+    margin-bottom: 20px;
+  }
+
   .player {
     background: var(--yellow);
     height: 100%;
@@ -392,6 +484,20 @@ main {
     // height: 3200px;
     // width: 3200px;
     min-height: 100%;
+  }
+}
+
+footer {
+  background: var(--green);
+  bottom: 0; left: 0;
+  box-shadow: 0 0 5px rgb(100, 66, 3);
+  padding: 5px 20px;
+  position: fixed;
+  text-align: center;
+  width: 100%;
+
+  button {
+    padding: 10px 50px;
   }
 }
 </style>
