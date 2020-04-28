@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <header>
+    <header :data-peel="peeling">
       <h1>Papayagrams</h1>
 
       <aside>
@@ -31,12 +31,20 @@
       </div>
       <div class="boards">
         <div v-if="mypile.length && players.length" class="player">
-          <div class="scroll" :style="scrollArea">
+          <div class="scroll" :style="scrollArea" v-show="!scrollAreaWinner">
               <Letter
                 v-for="(letter, i) in mypile"
                 :key="i"
                 :letter=letter
+                @dragBoard="addToDragBoard"
               />
+          </div>
+          <div class="winner" v-if="finished && dboard[0].pos" :style="scrollAreaWinner">
+            <Letter
+              v-for="(letter, i) in dboard"
+              :key="i"
+              :letterData="dboard[i]"
+            />
           </div>
         </div>
         <div v-else class="empty">
@@ -60,10 +68,14 @@
         @click="split"
       >Split</button>
       <button
-        v-if="players.length > 0 && mypile.length > 0"
+        v-if="players.length > 0 && mypile.length > 0 && pile.length >= players.length"
         @click="peel(false)"
         :disabled="peeling"
       >Peel</button>
+      <button
+        v-if="players.length > 0 && mypile.length > 0 && pile.length < players.length"
+        @click="papaya(false)"
+      >Papaya</button>
     </footer>
   </div>
 </template>
@@ -115,10 +127,13 @@ export default {
       mypile: [],
       otherpiles: {},
       scrollArea: false,
+      scrollAreaWinner: false,
       whoami: null,
       colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple'],
       fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon'],
       peeling: false,
+      dboard: [],
+      finished: false,
     };
   },
   methods: {
@@ -192,6 +207,9 @@ export default {
           if (data.data === 'nothost') this.peel();
           if (data.data === 'host') this.peel(true);
           break;
+        case 'papaya':
+          this.papaya(data.data);
+          break;
         default:
           break;
       }
@@ -203,6 +221,9 @@ export default {
       this.isHosting = false;
       this.players = [];
       this.whoami = null;
+    },
+    addToDragBoard(drag) {
+      this.dboard.push(drag);
     },
     makeName() {
       const n = Math.floor(Math.random() * Math.floor(6));
@@ -238,6 +259,7 @@ export default {
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
+      // if (this.players.length === 2) count = 70; // 2P Testing
 
       this.players.forEach((p) => {
         if (p === this.whoami) {
@@ -272,7 +294,9 @@ export default {
           }
         });
 
-        this.peeling = false;
+        setTimeout(() => {
+          this.peeling = false;
+        }, 1000);
       }
 
       if (!receive) {
@@ -288,6 +312,44 @@ export default {
           this.conn.send({ key: 'peel', data: 'nothost' });
         }
       }
+    },
+    papaya(receive = false) {
+      if (!receive) {
+        const board = [];
+
+        this.dboard.forEach((x) => {
+          board.push({
+            pos: x.position,
+            letter: x.element.textContent,
+          });
+        });
+
+        const papaya = {
+          key: 'papaya',
+          data: {
+            who: this.whoami,
+            board,
+            scrollArea: this.scrollArea,
+          },
+        };
+
+        // Send out call to finish
+        if (this.isHosting) {
+          this.conn.forEach((c) => {
+            c.send(papaya);
+          });
+        } else {
+          // Tell host to finish for you
+          this.conn.send(papaya);
+        }
+      }
+
+      if (!this.isHosting) {
+        this.dboard = receive.board;
+        this.scrollAreaWinner = receive.scrollArea;
+      }
+
+      this.finished = true;
     },
   },
 };
@@ -315,7 +377,7 @@ html, body {
 }
 
 body {
-  background: var(--yellow);
+  background: var(--white);
 }
 
 #app {
@@ -354,6 +416,7 @@ header {
   display: flex;
   grid-area: header;
   padding: 0 20px;
+  position: relative;
 
   h1 {
     line-height: 60px;
@@ -365,6 +428,24 @@ header {
     font-size: 1.25em;
     justify-self: flex-end;
     margin-left: auto;
+  }
+
+  &:before {
+    background: var(--yellow);
+    color: black;
+    content: 'PEEL!';
+    font-size: 3em;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    text-align: center;
+    transition: transform 0.2s;
+    transform: translateY(-100%);
+    width: 100%;
+  }
+
+  &[data-peel]:before {
+    transform: translateY(0);
   }
 }
 
@@ -435,10 +516,12 @@ main {
 .boards {
   border: 1px solid var(--orange);
   display: flex;
-  height: calc(100% - 40px);
+  height: calc(100% - 80px);
+  position: relative;
 
   .empty {
     align-items: center;
+    background: var(--yellow);
     color: var(--orange);
     display: flex;
     font-size: 48px;
@@ -484,6 +567,10 @@ main {
     // height: 3200px;
     // width: 3200px;
     min-height: 100%;
+  }
+
+  .winner {
+    background: var(--green);
   }
 }
 

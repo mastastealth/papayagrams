@@ -1,6 +1,6 @@
 <template>
   <div class="letter">
-    {{letter}}
+    {{letter}}{{backupLetter}}
   </div>
 </template>
 
@@ -9,9 +9,10 @@ export default {
   data() {
     return {
       draggie: null,
+      backupLetter: null,
     };
   },
-  props: ['letter'],
+  props: ['letter', 'letterData'],
   mounted() {
     const el = this.$el;
     const draggie = new Draggabilly(el, {
@@ -20,6 +21,12 @@ export default {
     });
 
     this.draggie = draggie;
+    this.$emit('dragBoard', draggie);
+
+    if (this.letterData) {
+      this.backupLetter = this.letterData.letter;
+      draggie.setPosition(this.letterData.pos.x, this.letterData.pos.y);
+    }
   },
 };
 </script>
