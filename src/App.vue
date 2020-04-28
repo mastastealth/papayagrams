@@ -8,33 +8,45 @@
         <template v-if="!isHosting">
           <button @click="join">Join</button> - <input type="text" v-model="lobby" maxlength="5">
         </template>
-        <template v-if="players.length > 0 && pile.length === 144">
+        <template v-if="isHosting && players.length > 0 && pile.length === 144">
           <button @click="split">Split</button>
         </template>
       </aside>
     </header>
 
     <main>
-      <div class="pile" v-if="pile.length">
-        <span class="letter">{{pile[0]}}</span>
-        <span class="letter">{{pile[1]}}</span>
-        <span class="letter">{{pile[2]}}</span>
-        <span class="letter">{{pile[3]}}</span>
-        <span class="letter">{{pile[4]}}</span>
+      <div class="squad">
+        <template v-if="pile.length && players.length">
+          <span
+            v-for="(player, i) in players"
+            :key="i"
+            class="fruit"
+            :data-color="player.split(' ')[0]"
+            :data-fruit="player.split(' ')[1]"
+          >{{player}}</span>
+        </template>
+        <template v-else>
+          <span class="letter">H</span>
+          <span class="letter">E</span>
+          <span class="letter">L</span>
+          <span class="letter">L</span>
+          <span class="letter">O</span>
+        </template>
       </div>
       <div class="boards">
-        <div v-for="(player, i) in players" :key="i" class="player">
-          <div class="scroll">
-            <Letter
-              v-for="(letter, i) in mypile"
-              :key="i"
-              :letter=letter
-            />
+        <div v-if="mypile.length && players.length" class="player">
+          <div class="scroll" :style="scrollArea">
+              <Letter
+                v-for="(letter, i) in mypile"
+                :key="i"
+                :letter=letter
+              />
           </div>
         </div>
-
-        <div v-if="!players.length" class="empty">
-          No papayas.
+        <div v-else class="empty">
+          <span v-if="!conn || mypile.length">No papayas.</span>
+          <span v-if="conn && pile.length === 0">Waiting for papayas...</span>
+          <span v-if="conn && pile.length">Papayas Ready.</span>
         </div>
       </div>
     </main>
@@ -52,6 +64,7 @@ export default {
   data() {
     return {
       peer: null,
+      conn: null,
       lobby: null,
       isHosting: false,
       players: [],
@@ -85,33 +98,45 @@ export default {
       },
       pile: [],
       mypile: [],
+      otherpiles: {},
+      scrollArea: false,
+      whoami: null,
+      colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple'],
+      fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon'],
     };
   },
   methods: {
     host() {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
-      this.peer = new Peer(`papaya${this.lobby}`, { debug: 3 });
+      this.peer = new Peer(`papaya${this.lobby}`, { debug: 2 });
       this.isHosting = true;
-      this.players.push('host');
+      this.whoami = this.makeName();
+      this.players.push(this.whoami);
       this.shuffle(true);
+      this.conn = [];
 
       // When another player connects
       this.peer.on('connection', (conn) => {
         // Listen for data from that player
         conn.on('data', (data) => {
-          this.players.push('joined');
           this.gotData(conn, data);
         });
       });
     },
     join() {
-      this.peer = new Peer({ debug: 3 });
+      this.peer = new Peer({ debug: 2 });
       const conn = this.peer.connect(`papaya${this.lobby.toUpperCase()}`, { reliable: true });
-      this.players.push('joined');
+      this.conn = conn;
+      this.whoami = this.makeName();
+      this.players.push(this.whoami);
 
       conn.on('open', () => {
         conn.send({ key: 'connected' });
-        this.players.push('host');
+        setTimeout(() => {
+          if (!this.pile.length) {
+            this.peer.destroy();
+          }
+        }, 5000);
       });
 
       conn.on('data', (data) => {
@@ -126,15 +151,32 @@ export default {
           // Send the pile of letters
           conn.send({ key: 'pile', data: this.pile });
           break;
+        case 'success':
+          // Add player who successfully joined
+          this.players.push(data.data);
+          this.conn.push(conn);
+          this.conn.forEach((c) => {
+            c.send({ key: 'players', data: this.players });
+          });
+          break;
         case 'pile':
           this.pile = data.data;
+          conn.send({ key: 'success', data: this.whoami });
           break;
         case 'split':
           this.split();
           break;
+        case 'players':
+          this.players = [...data.data];
+          break;
         default:
           break;
       }
+    },
+    makeName() {
+      const n = Math.floor(Math.random() * Math.floor(6));
+      const nn = Math.floor(Math.random() * Math.floor(6));
+      return `${this.colors[n]} ${this.fruits[nn]}`;
     },
     shuffle(fresh = false) {
       if (fresh) {
@@ -154,15 +196,38 @@ export default {
       console.log(this.pile);
     },
     split() {
+      if (this.isHosting) {
+        // Send player list to everyone on split
+        this.conn.forEach((c) => {
+          c.send({ key: 'split', data: this.players });
+        });
+      }
+
+      this.players.sort(); // Get the same array?
+
+      let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
+      if (this.players.length >= 7) count = 11;
+
       this.players.forEach((p) => {
-        if (p === 'host') {
-          for (let i = 0; i < 21; i += 1) {
+        if (p === this.whoami) {
+          for (let i = 0; i < count; i += 1) {
             this.mypile.push(this.pile.pop());
           }
         } else {
-          this.pile.pop();
+          if (!this.otherpiles[p]) this.otherpiles[p] = [];
+          for (let i = 0; i < count; i += 1) {
+            this.otherpiles[p].push(this.pile.pop());
+          }
         }
       });
+
+      console.log(this.players, this.mypile, this.otherpiles);
+
+      // Fix scroll area so we can't jack it up later
+      setTimeout(() => {
+        const myScroll = document.querySelector('.scroll');
+        this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
+      }, 300);
     },
   },
 };
@@ -199,8 +264,10 @@ body {
   grid-template-areas:
   "header"
   "body";
-  grid-template-rows: 60px auto;
+  grid-template-rows: 60px calc(100vh - 60px);
+  grid-template-columns: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 button {
@@ -235,8 +302,44 @@ main {
   padding: 20px;
 }
 
-.pile {
+.squad {
   margin-bottom: 10px;
+
+  .fruit {
+    border: 1px solid black;
+    border-radius: 3px;
+    color: white;
+    display: inline-block;
+    margin-right: 3px;
+    padding: 5px 10px;
+
+    &[data-color="red"] {
+      background: var(--red);
+    }
+
+    &[data-color="orange"] {
+      background: var(--orange);
+    }
+
+    &[data-color="yellow"] {
+      background: var(--yellow);
+    }
+
+    &[data-color="green"] {
+      background: var(--green);
+      border: 1px solid darkgreen;
+    }
+
+    &[data-color="blue"] {
+      background: blue;
+      border: 1px solid darkblue;
+    }
+
+    &[data-color="purple"] {
+      background: purple;
+      border: 1px solid darkpurple;
+    }
+  }
 }
 
 .letter {
@@ -256,7 +359,7 @@ main {
 .boards {
   border: 1px solid var(--orange);
   display: flex;
-  height: 100%;
+  height: calc(100% - 40px);
 
   .empty {
     align-items: center;
@@ -265,6 +368,8 @@ main {
     font-size: 48px;
     height: 100%;
     justify-content: center;
+    max-width: 100%;
+    width: 100%;
   }
 
   .player {
@@ -277,11 +382,16 @@ main {
     &:not(:last-child) {
       margin-right: 10px;
     }
+
+    &:only-child {
+      max-width: 100%;
+    }
   }
 
   .scroll {
-    height: 4000px;
-    width: 4000px;
+    // height: 3200px;
+    // width: 3200px;
+    min-height: 100%;
   }
 }
 </style>

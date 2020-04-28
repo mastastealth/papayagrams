@@ -6,6 +6,11 @@
 
 <script>
 export default {
+  data() {
+    return {
+      draggie: null,
+    };
+  },
   props: ['letter'],
   mounted() {
     const el = this.$el;
@@ -14,7 +19,7 @@ export default {
       grid: [40, 40],
     });
 
-    console.log(draggie);
+    this.draggie = draggie;
   },
 };
 </script>
