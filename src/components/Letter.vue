@@ -1,37 +1,41 @@
 <template>
-  <div class="letter">
+  <vue-draggable-resizable v-if="letter || backupLetter" :data-letter="letter"
+    class="letter"
+    :w="40" :h="40"
+    :x="letterData ? letterData.pos.x : 0" :y="letterData ? letterData.pos.y : 0"
+    :grid="[40,40]"
+    :resizable="false"
+    @dragstop="fakeClick"
+  >
     {{letter}}{{backupLetter}}
-  </div>
+  </vue-draggable-resizable>
 </template>
 
 <script>
+import Vue from 'vue';
+import VueDraggableResizable from 'vue-draggable-resizable';
+
+Vue.component('vue-draggable-resizable', VueDraggableResizable);
+
 export default {
-  data() {
-    return {
-      draggie: null,
-      backupLetter: null,
-    };
+  computed: {
+    backupLetter() { return this.letterData?.letter || null; },
   },
-  props: ['letter', 'letterData'],
-  mounted() {
-    const el = this.$el;
-    const draggie = new Draggabilly(el, {
-      containment: true,
-      grid: [40, 40],
-    });
-
-    this.draggie = draggie;
-    this.$emit('dragBoard', draggie);
-
-    if (this.letterData) {
-      this.backupLetter = this.letterData.letter;
-      draggie.setPosition(this.letterData.pos.x, this.letterData.pos.y);
-    }
+  components: {
+    VueDraggableResizable,
+  },
+  props: ['letterKey', 'letter', 'letterData', 'dumpMode'],
+  methods: {
+    fakeClick(x, y) {
+      if (this.dumpMode) this.$emit('dumpLetter', this.letterKey);
+      this.x = x;
+      this.y = y;
+    },
   },
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .letter {
   cursor: pointer;
   height: 40px;
@@ -39,5 +43,10 @@ export default {
   line-height: 40px;
   margin: 0;
   width: 40px;
+}
+
+[data-letter="0"] {
+  pointer-events: none;
+  visibility: hidden;
 }
 </style>

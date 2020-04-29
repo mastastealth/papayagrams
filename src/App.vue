@@ -30,20 +30,23 @@
         </template>
       </div>
       <div class="boards">
-        <div v-if="mypile.length && players.length" class="player">
+        <div v-if="myActualPile.length && players.length" class="player">
           <div class="scroll" :style="scrollArea" v-show="!scrollAreaWinner">
               <Letter
                 v-for="(letter, i) in mypile"
                 :key="i"
                 :letter=letter
-                @dragBoard="addToDragBoard"
+                :letterKey="i"
+                :dumpMode="dumpMode"
+                @dumpLetter="dumpLetter"
               />
           </div>
-          <div class="winner" v-if="finished && dboard[0].pos" :style="scrollAreaWinner">
+          <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
             <Letter
               v-for="(letter, i) in dboard"
               :key="i"
               :letterData="dboard[i]"
+              :dumpMode="dumpMode"
             />
           </div>
         </div>
@@ -68,16 +71,16 @@
         @click="split"
       >Split</button>
       <button
-        v-if="mypile.length > 0 && pile.length >= players.length"
+        v-if="myActualPile.length > 0 && pile.length >= players.length"
         @click="peel(false)"
         :disabled="peeling"
       >Peel</button>
       <button
-        v-if="mypile.length > 0 && pile.length < players.length"
+        v-if="myActualPile.length > 0 && pile.length < players.length"
         @click="papaya(false)"
       >Papaya</button>
       <button
-        v-if="mypile.length > 0 && pile.length >= 3"
+        v-if="myActualPile.length > 0 && pile.length >= 3"
         @click="dumpMode = !dumpMode"
         style="background: var(--red);"
       >Dump</button>
@@ -141,6 +144,11 @@ export default {
       finished: false,
       dumpMode: false,
     };
+  },
+  computed: {
+    myActualPile() {
+      return this.mypile.filter((x) => x !== '0');
+    },
   },
   methods: {
     host() {
@@ -213,6 +221,9 @@ export default {
           if (data.data === 'nothost') this.peel();
           if (data.data === 'host') this.peel(true);
           break;
+        case 'dump':
+          this.dumpLetter(data.data, true);
+          break;
         case 'papaya':
           this.papaya(data.data);
           break;
@@ -227,9 +238,6 @@ export default {
       this.isHosting = false;
       this.players = [];
       this.whoami = null;
-    },
-    addToDragBoard(drag) {
-      this.dboard.push(drag);
     },
     makeName() {
       const n = Math.floor(Math.random() * Math.floor(6));
@@ -250,10 +258,8 @@ export default {
         const j = Math.floor(Math.random() * (i + 1));
         [this.pile[i], this.pile[j]] = [this.pile[j], this.pile[i]];
       }
-
-      console.log(this.pile);
     },
-    async split() {
+    split() {
       if (this.isHosting) {
         // Send player list to everyone on split
         this.conn.forEach((c) => {
@@ -265,7 +271,7 @@ export default {
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
-      // if (this.players.length === 2) count = 70; // 2P Testing
+      if (this.players.length === 2) count = 70; // 2P Testing
 
       this.players.forEach((p) => {
         if (p === this.whoami) {
@@ -280,11 +286,9 @@ export default {
         }
       });
 
-      console.log(this.players, this.mypile, this.otherpiles);
-
       // Fix scroll area so we can't jack it up later
-      await this.$nextTick();
-      const myScroll = this.$refs.playerScroll;
+      setTimeout(() => {
+        const myScroll = document.querySelector('.scroll');
         this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
       }, 300);
     },
@@ -319,15 +323,63 @@ export default {
         }
       }
     },
+    dumpLetter(index, receive = false) {
+      if (index.whoami === this.whoami) return false;
+      let dumped;
+
+      if (receive && index.whoami !== this.whoami) {
+        this.pile = [...index.pile];
+      } else {
+        dumped = this.mypile[index];
+
+        // Grab 3
+        this.mypile.push(this.pile.pop());
+        this.mypile.push(this.pile.pop());
+        this.mypile.push(this.pile.pop());
+
+        // Put it back
+        this.pile.push(dumped);
+        this.shuffle();
+
+        // Delete it
+        this.mypile[index] = '0';
+
+        this.dumpMode = false;
+      }
+
+      if (this.isHosting) {
+        this.conn.forEach((c) => {
+          c.send({
+            key: 'dump',
+            data: {
+              pile: this.pile,
+              whoami: (receive) ? index.whoami : this.whoami,
+            },
+          });
+        });
+      } else {
+        this.conn.send({
+          key: 'dump',
+          data: {
+            pile: this.pile,
+            whoami: this.whoami,
+          },
+        });
+      }
+
+      return true;
+    },
     papaya(receive = false) {
       if (!receive) {
         const board = [];
 
-        this.dboard.forEach((x) => {
-          board.push({
-            pos: x.position,
-            letter: x.element.textContent,
-          });
+        this.$children.forEach((c) => {
+          if (c.letter) {
+            board.push({
+              pos: { x: c.$children[0].left, y: c.$children[0].top },
+              letter: c.letter,
+            });
+          }
         });
 
         const papaya = {
@@ -348,9 +400,7 @@ export default {
           // Tell host to finish for you
           this.conn.send(papaya);
         }
-      }
-
-      if (!this.isHosting) {
+      } else {
         this.dboard = receive.board;
         this.scrollAreaWinner = receive.scrollArea;
       }
@@ -439,7 +489,7 @@ header {
   &:before {
     background: var(--yellow);
     color: black;
-    content: ' ';
+    content: 'PEEL!';
     font-size: 3em;
     height: 100%;
     position: absolute;
@@ -451,8 +501,6 @@ header {
   }
 
   &[data-peel]:before {
-    background: var(--yellow);
-    content: 'PEEL!';
     transform: translateY(0);
   }
 
