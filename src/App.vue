@@ -358,14 +358,15 @@ export default {
         }
       }
     },
-    dumpLetter(index, receive = false) {
+    dumpLetter(data, receive = false) {
+      const { index, board } = data;
       if (index.whoami === this.whoami) return false;
       let dumped;
 
       if (receive && index.whoami !== this.whoami) {
         this.pile = [...index.pile];
       } else {
-        dumped = this.mypile[index];
+        dumped = this[board ? 'myboard' : 'mypile'][index];
 
         // Grab 3
         this.mypile.push(this.pile.pop());
@@ -377,7 +378,7 @@ export default {
         this.shuffle();
 
         // Delete it
-        this.mypile.splice(index, 1);
+        this[board ? 'myboard' : 'mypile'].splice(index, 1);
 
         this.dumpMode = false;
       }

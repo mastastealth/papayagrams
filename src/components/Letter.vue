@@ -34,7 +34,12 @@ export default {
   props: ['letterKey', 'letter', 'letterData', 'dumpMode'],
   methods: {
     fakeClick(x, y) {
-      if (this.dumpMode) this.$emit('dumpLetter', this.letterKey);
+      if (this.dumpMode) {
+        this.$emit('dumpLetter', {
+          index: this.letterKey,
+          board: !!this.letterData,
+        });
+      }
       if (y < -40 && this.$el.parentNode.classList.contains('hand')) {
         this.$emit('placeLetter', {
           key: this.letterKey,
