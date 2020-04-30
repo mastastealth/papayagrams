@@ -107,7 +107,7 @@
         >Rotten Papaya</button>
 
         <button
-          v-if="mypile.length > 0 && pile.length >= 3"
+          v-if="pile.length >= 3 && (mypile.length || myboard.length)"
           @click="dumpMode = !dumpMode"
           style="background: var(--red);"
         >Dump</button>
