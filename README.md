@@ -1,4 +1,4 @@
-# papayagram
+# Papayagrams
 
 ## Project setup
 ```

@@ -65,6 +65,8 @@ export default {
 }
 
 [data-boardtile] {
+  box-shadow: 0 0 3px rgb(189, 104, 0);
+  opacity: 0.9;
   position: absolute;
 }
 
