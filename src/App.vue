@@ -19,6 +19,7 @@
             :data-color="player.split(' ')[0]"
             :data-fruit="player.split(' ')[1]"
             :data-isme="whoami == player"
+            :data-winner="winner == player"
           >{{player}}</span>
         </template>
         <template v-else>
@@ -64,7 +65,10 @@
               <button @click="join">Join</button>
             </template>
           </div>
-          <span v-if="conn && pile.length === 0">Waiting for papayas...</span>
+          <template v-if="conn && pile.length === 0">
+            <span v-if="finished">No more papayas for you.</span>
+            <span v-else>Waiting for papayas...</span>
+          </template>
           <span v-if="conn && pile.length">Papayas Ready.</span>
         </div>
       </div>
@@ -104,6 +108,7 @@
         <button
           v-if="finished"
           style="background: var(--red);"
+          @click="rotten"
         >Rotten Papaya</button>
 
         <button
@@ -175,6 +180,7 @@ export default {
       finished: false,
       dumpMode: false,
       lastDrop: null,
+      winner: false,
     };
   },
   methods: {
@@ -258,6 +264,12 @@ export default {
           break;
         case 'papaya':
           this.papaya(data.data);
+          break;
+        case 'rotten':
+          this.rotting(data.data);
+          break;
+        case 'ilied':
+          this.rotPlayer(data.data);
           break;
         default:
           break;
@@ -447,12 +459,63 @@ export default {
           // Tell host to finish for you
           this.conn.send(papaya);
         }
+
+        this.winner = this.whoami;
       } else {
         this.dboard = receive.board;
         this.scrollAreaWinner = receive.scrollArea;
+        this.winner = receive.who;
       }
 
       this.finished = true;
+    },
+    rotten() {
+      // Host makes the call
+      if (this.isHosting) {
+        if (this.winner === this.whoami) {
+          this.rotting(this.whoami);
+        } else {
+          this.conn.forEach((c) => {
+            c.send({ key: 'rotten', data: this.winner });
+          });
+        }
+      }
+    },
+    rotting(who) {
+      if (who !== this.whoami) return false;
+      // The fake winner now clears his board and sends his pile back
+      if (this.isHosting) {
+        if (this.isHosting) {
+          this.conn.forEach((c) => {
+            c.send({ key: 'ilied', data: this.myboard });
+          });
+        }
+      } else {
+        this.conn.send({ key: 'ilied', data: this.myboard });
+      }
+
+      this.winner = false;
+      this.mypile = [];
+      this.myboard = [];
+      this.dboard = [];
+
+      return true;
+    },
+    rotPlayer(data) {
+      // Add all the pieces of rotten papaya back into pile
+      data.forEach((tile) => {
+        this.pile.push(tile);
+      });
+
+      this.winner = false;
+      this.finished = false;
+
+      // Tell everyone else to do it too
+      if (this.isHosting) {
+        this.conn.forEach((c) => {
+          c.send({ key: 'ilied', data });
+        });
+      }
     },
     roundTo(num, r) {
       const resto = num % r;
@@ -587,6 +650,8 @@ main {
     text-transform: uppercase;
 
     &[data-isme]:after { content: '🌟'; margin-left: 5px; }
+
+    &[data-winner] { transform: scale(1.5); }
 
     &[data-color="red"] {
       background: var(--red);
