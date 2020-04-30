@@ -30,23 +30,28 @@
         </template>
       </div>
       <div class="boards">
-        <div v-if="myActualPile.length && players.length" class="player">
-          <div class="scroll" :style="scrollArea" v-show="!scrollAreaWinner">
-              <Letter
-                v-for="(letter, i) in mypile"
-                :key="i"
-                :letter=letter
-                :letterKey="i"
-                :dumpMode="dumpMode"
-                @dumpLetter="dumpLetter"
-              />
+        <div v-if="(mypile.length || myboard.length) && players.length" class="player">
+          <div
+            class="scroll"
+            :style="scrollArea"
+            v-show="!scrollAreaWinner"
+            ref="playerScroll"
+          >
+            <Letter
+              v-for="(letter, i) in myboard"
+              :key="letter.id"
+              :letter=letter
+              :letterKey="i"
+              :dumpMode="dumpMode"
+              :letterData="lastDrop"
+              @dumpLetter="dumpLetter"
+            />
           </div>
           <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
             <Letter
               v-for="(letter, i) in dboard"
               :key="i"
               :letterData="dboard[i]"
-              :dumpMode="dumpMode"
             />
           </div>
         </div>
@@ -66,35 +71,55 @@
     </main>
 
     <footer v-if="players.length > 0 ">
-      <button
-        v-if="isHosting && pile.length === 144"
-        @click="split"
-      >Split</button>
-      <button
-        v-if="myActualPile.length > 0 && pile.length >= players.length"
-        @click="peel(false)"
-        :disabled="peeling"
-      >Peel</button>
-      <button
-        v-if="myActualPile.length > 0 && pile.length < players.length"
-        @click="papaya(false)"
-      >Papaya</button>
-      <button
-        v-if="myActualPile.length > 0 && pile.length >= 3"
-        @click="dumpMode = !dumpMode"
-        style="background: var(--red);"
-      >Dump</button>
+      <aside class="hand" v-if="!finished">
+        <Letter
+          v-for="(letter, i) in mypile"
+          :key="letter.id"
+          :letter=letter
+          :letterKey="i"
+          :dumpMode="dumpMode"
+          @dumpLetter="dumpLetter"
+          @placeLetter="placeLetter"
+        />
+      </aside>
+
+      <aside class="buttons">
+        <button
+          v-if="isHosting && pile.length === 144"
+          @click="split"
+        >Split</button>
+
+        <template v-if="!mypile.length && myboard.length > 0">
+          <button
+            v-if="pile.length >= players.length"
+            @click="peel(false)"
+            :disabled="peeling"
+          >Peel</button>
+          <button
+            v-if="pile.length < players.length && !finished"
+            @click="papaya(false)"
+          >Papaya</button>
+        </template>
+
+        <button
+          v-if="mypile.length > 0 && pile.length >= 3"
+          @click="dumpMode = !dumpMode"
+          style="background: var(--red);"
+        >Dump</button>
+      </aside>
     </footer>
   </div>
 </template>
 
 <script>
 import Letter from './components/Letter.vue';
+// import LetterB from './components/LetterB.vue';
 
 export default {
   name: 'App',
   components: {
     Letter,
+    // LetterB,
   },
   data() {
     return {
@@ -133,6 +158,7 @@ export default {
       },
       pile: [],
       mypile: [],
+      myboard: [],
       otherpiles: {},
       scrollArea: false,
       scrollAreaWinner: false,
@@ -143,17 +169,18 @@ export default {
       dboard: [],
       finished: false,
       dumpMode: false,
+      lastDrop: null,
     };
-  },
-  computed: {
-    myActualPile() {
-      return this.mypile.filter((x) => x !== '0');
-    },
   },
   methods: {
     host() {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
-      this.peer = new Peer(`papaya${this.lobby}`, { debug: 2 });
+      this.peer = new Peer(`papaya${this.lobby}`, {
+        debug: 2,
+        config: {
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        },
+      });
       this.isHosting = true;
       this.whoami = this.makeName();
       this.players.push(this.whoami);
@@ -248,7 +275,10 @@ export default {
       if (fresh) {
         Object.keys(this.letters).forEach((letter) => {
           for (let i = 0; i < this.letters[letter]; i += 1) {
-            this.pile.push(letter);
+            this.pile.push({
+              letter,
+              id: `${letter}-${i}`,
+            });
           }
         });
       }
@@ -342,7 +372,7 @@ export default {
         this.shuffle();
 
         // Delete it
-        this.mypile[index] = '0';
+        this.mypile.splice(index, 1);
 
         this.dumpMode = false;
       }
@@ -369,6 +399,16 @@ export default {
 
       return true;
     },
+    placeLetter(data) {
+      const { key: index, el } = data;
+      const scroll = this.$refs.playerScroll.getBoundingClientRect();
+      const tile = el.getBoundingClientRect();
+      const x = this.roundTo(tile.x - scroll.x, 40); // x position within the element.
+      const y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
+      this.lastDrop = { pos: { x, y } };
+
+      this.myboard.push(...this.mypile.splice(index, 1));
+    },
     papaya(receive = false) {
       if (!receive) {
         const board = [];
@@ -377,7 +417,7 @@ export default {
           if (c.letter) {
             board.push({
               pos: { x: c.$children[0].left, y: c.$children[0].top },
-              letter: c.letter,
+              letter: c.letter.letter,
             });
           }
         });
@@ -406,6 +446,11 @@ export default {
       }
 
       this.finished = true;
+    },
+    roundTo(num, r) {
+      const resto = num % r;
+      if (resto <= (r / 2)) return num - resto;
+      return num + r - resto;
     },
   },
 };
@@ -476,6 +521,9 @@ header {
 
   h1 {
     line-height: 60px;
+    @media screen and (max-width: 480px) {
+      font-size: 24px;
+    }
   }
 
   aside {
@@ -623,12 +671,16 @@ main {
     &:only-child {
       max-width: 100%;
     }
+
+    > div {
+      min-height: 100%;
+      position: relative;
+    }
   }
 
   .scroll {
     // height: 3200px;
     // width: 3200px;
-    min-height: 100%;
   }
 
   .winner {
@@ -637,17 +689,23 @@ main {
 }
 
 footer {
+  align-items: center;
   background: var(--green);
   bottom: 0; left: 0;
   box-shadow: 0 0 5px rgb(100, 66, 3);
+  display: flex;
   padding: 5px 20px;
   position: fixed;
-  text-align: center;
+  user-select: none;
   width: 100%;
 
   button {
     margin: 0 5px;
     padding: 10px 50px;
+  }
+
+  .hand {
+    flex-grow: 1;
   }
 }
 </style>
