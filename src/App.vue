@@ -102,6 +102,11 @@
         </template>
 
         <button
+          v-if="finished"
+          style="background: var(--red);"
+        >Rotten Papaya</button>
+
+        <button
           v-if="mypile.length > 0 && pile.length >= 3"
           @click="dumpMode = !dumpMode"
           style="background: var(--red);"
@@ -216,7 +221,7 @@ export default {
           this.peer.destroy();
           this.resetMP();
         }
-      }, 5000);
+      }, 10000);
     },
     gotData(conn, data) {
       console.log('Data received.', data);
