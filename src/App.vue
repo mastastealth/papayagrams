@@ -393,6 +393,7 @@ export default {
           });
         });
       } else {
+        if (receive) return false;
         this.conn.send({
           key: 'dump',
           data: {
