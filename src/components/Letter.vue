@@ -1,9 +1,9 @@
 <template>
   <vue-draggable-resizable v-if="safeLetter" :data-letter="safeLetter"
-    class="letter" :data-boardtile="posX >= 0 ? true : false"
+    class="letter" :data-boardtile="position ? true : false"
     :w="40" :h="40"
-    :x="posX || 0" :y="posY || 0"
-    :grid="posX >= 0 ? grid : [1,1]"
+    :x="posX" :y="posY"
+    :grid="position ? grid : [1,1]"
     :resizable="false"
     @dragstop="fakeClick"
   >
@@ -18,28 +18,20 @@ import VueDraggableResizable from 'vue-draggable-resizable';
 Vue.component('vue-draggable-resizable', VueDraggableResizable);
 
 export default {
-  computed: {
-    safeLetter() { return this.letter?.letter || this.letterData?.letter || null; },
-  },
   components: {
     VueDraggableResizable,
-  },
-  mounted() {
-    // console.log(
-    //   this.letterData?.pos.x,
-    //   this.letterData?.pos.y,
-    //   this.$children[0].x,
-    //   this.$children[0].y,
-    // );
   },
   data() {
     return {
       grid: [40, 40],
-      posX: this.letterData?.pos.x,
-      posY: this.letterData?.pos.y,
     };
   },
-  props: ['letterKey', 'letter', 'letterData', 'dumpMode'],
+  computed: {
+    posX() { return this.position?.[0] ?? null; },
+    posY() { return this.position?.[1] ?? null; },
+    safeLetter() { return this.letter?.letter || this.letterData?.letter || null; },
+  },
+  props: ['letterKey', 'letter', 'letterData', 'dumpMode', 'position'],
   methods: {
     fakeClick(x, y) {
       if (this.dumpMode) {

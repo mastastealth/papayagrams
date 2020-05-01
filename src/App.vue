@@ -40,7 +40,7 @@
               :letter=letter
               :letterKey="i"
               :dumpMode="dumpMode"
-              :letterData="lastDrop"
+              :position="myboardPos[letter.id]"
               @dumpLetter="dumpLetter"
             />
           </div>
@@ -165,6 +165,7 @@ export default {
       pile: [],
       mypile: [],
       myboard: [],
+      myboardPos: {},
       otherpiles: {},
       scrollArea: false,
       scrollAreaWinner: false,
@@ -435,10 +436,10 @@ export default {
       const tile = el.getBoundingClientRect();
       const x = this.roundTo(tile.x - scroll.x, 40); // x position within the element.
       const y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
-      this.lastDrop = { pos: { x, y } };
 
-      console.log(x, y);
-      this.myboard.push(...this.mypile.splice(index, 1));
+      const newLetter = this.mypile.splice(index, 1);
+      this.$set(this.myboardPos, newLetter[0].id, [x, y]);
+      this.myboard.push(...newLetter);
     },
     papaya(receive = false) {
       if (!receive) {
@@ -550,7 +551,7 @@ export default {
 
       // Get boundaries
       this.$children.forEach((c) => {
-        if (c.posX !== undefined) {
+        if (c.position !== undefined) {
           if (e[0] === null || e[0] > c.$children[0].top) e[0] = c.$children[0].top;
           if (e[1] === null || e[1] < c.$children[0].left + 40) e[1] = c.$children[0].left + 40;
           if (e[2] === null || e[2] < c.$children[0].top + 40) e[2] = c.$children[0].top + 40;
@@ -567,15 +568,28 @@ export default {
       await this.$nextTick();
 
       // Shift all previous tiles by 6 tiles top and left
+      const savedPos = [];
+
       boardTiles.forEach((c) => {
         const realX = c.$children[0].left;
         const realY = c.$children[0].top;
         const newX = 200 + (realX - e[3]);
         const newY = 200 + (realY - e[0]);
 
-        console.log(`Moving tile [${c.safeLetter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
-        c.posX = newX; // eslint-disable-line
-        c.posY = newY; // eslint-disable-line
+        savedPos.push({
+          realX, realY, newX, newY,
+        });
+        this.$set(this.myboardPos, c.letter.id, [0, 0]);
+      });
+
+      await this.$nextTick();
+
+      boardTiles.forEach((c, i) => {
+        const {
+          realX, realY, newX, newY,
+        } = savedPos[i];
+        console.log(`Moving tile [${c.letter.letter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
+        this.$set(this.myboardPos, c.letter.id, [newX, newY]);
       });
     },
   },
