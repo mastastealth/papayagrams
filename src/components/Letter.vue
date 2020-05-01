@@ -37,7 +37,7 @@ export default {
       if (this.dumpMode) {
         this.$emit('dumpLetter', {
           index: this.letterKey,
-          board: !!this.letterData,
+          board: !!this.position,
         });
       }
       if (y < -40 && this.$el.parentNode.classList.contains('hand')) {

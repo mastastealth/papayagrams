@@ -381,8 +381,8 @@ export default {
       }
     },
     dumpLetter(data, receive = false) {
-      const index = data.index || null;
-      const board = data.board || null;
+      const index = data.index ?? null;
+      const board = data.board ?? null;
 
       if (data.whoami === this.whoami) return false;
       let dumped;
@@ -826,17 +826,6 @@ main {
       min-width: 481px;
       position: relative;
     }
-  }
-
-  .scroll:before {
-    background: var(--orange);
-    content: '';
-    height: 200px;
-    opacity: 0.4;
-    pointer-events: none;
-    position: absolute;
-    top: 0; left: 0;
-    width: 200px;
   }
 
   .winner {
