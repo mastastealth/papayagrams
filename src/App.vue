@@ -28,6 +28,7 @@
       </div>
       <div class="boards">
         <div v-if="(mypile.length || myboard.length) && players.length" class="player">
+          <button v-if="myboard.length" class="resize" @click="resize">Auto Resize ↔️</button>
           <div
             class="scroll"
             :style="scrollArea"
@@ -112,8 +113,6 @@
           @click="dumpMode = !dumpMode"
           style="background: var(--red);"
         >Dump</button>
-
-        <button v-if="myboard.length" @click="resize">↔️</button>
       </aside>
     </footer>
   </div>
@@ -825,6 +824,14 @@ main {
       min-height: 481px;
       min-width: 481px;
       position: relative;
+    }
+
+    .resize {
+      font-size: 1rem;
+      padding: 5px 10px;
+      position: absolute;
+      top: 5px; right: 25px;
+      width: auto;
     }
   }
 
