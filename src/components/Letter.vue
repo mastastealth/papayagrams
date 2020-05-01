@@ -1,6 +1,6 @@
 <template>
   <vue-draggable-resizable v-if="safeLetter" :data-letter="safeLetter"
-    class="letter" :data-boardtile="posX ? true : false"
+    class="letter" :data-boardtile="posX >= 0 ? true : false"
     :w="40" :h="40"
     :x="posX || 0" :y="posY || 0"
     :grid="posX >= 0 ? grid : [1,1]"
@@ -23,6 +23,14 @@ export default {
   },
   components: {
     VueDraggableResizable,
+  },
+  mounted() {
+    // console.log(
+    //   this.letterData?.pos.x,
+    //   this.letterData?.pos.y,
+    //   this.$children[0].x,
+    //   this.$children[0].y,
+    // );
   },
   data() {
     return {

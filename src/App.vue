@@ -23,11 +23,7 @@
           >{{player}}</span>
         </template>
         <template v-else>
-          <span class="letter">H</span>
-          <span class="letter">E</span>
-          <span class="letter">L</span>
-          <span class="letter">L</span>
-          <span class="letter">O</span>
+          <span class="letter" v-for="(letter, i) in greeting()" :key="i">{{letter}}</span>
         </template>
       </div>
       <div class="boards">
@@ -116,6 +112,8 @@
           @click="dumpMode = !dumpMode"
           style="background: var(--red);"
         >Dump</button>
+
+        <button v-if="myboard.length" @click="resize">↔️</button>
       </aside>
     </footer>
   </div>
@@ -123,13 +121,11 @@
 
 <script>
 import Letter from './components/Letter.vue';
-// import LetterB from './components/LetterB.vue';
 
 export default {
   name: 'App',
   components: {
     Letter,
-    // LetterB,
   },
   data() {
     return {
@@ -184,6 +180,19 @@ export default {
     };
   },
   methods: {
+    greeting() {
+      const n = Math.floor(Math.random() * Math.floor(6));
+      const greetings = [
+        'Hello',
+        'Bienvenidos',
+        'こんにちは',
+        'Wassup',
+        'Bonjour',
+        'Hola',
+      ];
+
+      return greetings[n].toUpperCase().split('');
+    },
     host() {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
       this.peer = new Peer(`papaya${this.lobby}`, {
@@ -428,6 +437,7 @@ export default {
       const y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
       this.lastDrop = { pos: { x, y } };
 
+      console.log(x, y);
       this.myboard.push(...this.mypile.splice(index, 1));
     },
     papaya(receive = false) {
@@ -533,6 +543,40 @@ export default {
       const resto = num % r;
       if (resto <= (r / 2)) return num - resto;
       return num + r - resto;
+    },
+    async resize() {
+      const e = [null, null, null, null]; // Top, right, bottom, left
+      const boardTiles = [];
+
+      // Get boundaries
+      this.$children.forEach((c) => {
+        if (c.posX !== undefined) {
+          if (e[0] === null || e[0] > c.$children[0].top) e[0] = c.$children[0].top;
+          if (e[1] === null || e[1] < c.$children[0].left + 40) e[1] = c.$children[0].left + 40;
+          if (e[2] === null || e[2] < c.$children[0].top + 40) e[2] = c.$children[0].top + 40;
+          if (e[3] === null || e[3] > c.$children[0].left) e[3] = c.$children[0].left;
+          boardTiles.push(c);
+        }
+      });
+
+      // Calculate and set new dimensions (6 tile padding)
+      const h = e[2] - e[0];
+      const w = e[1] - e[3];
+      console.log(`Play area was ${w / 40} by ${h / 40} tiles. Enlarging to ${(w + 400) / 40} by ${(h + 400) / 40} tiles.`);
+      this.scrollArea = `height: ${h + 400 + 1}px; width: ${w + 400 + 1}px;`;
+      await this.$nextTick();
+
+      // Shift all previous tiles by 6 tiles top and left
+      boardTiles.forEach((c) => {
+        const realX = c.$children[0].left;
+        const realY = c.$children[0].top;
+        const newX = 200 + (realX - e[3]);
+        const newY = 200 + (realY - e[0]);
+
+        console.log(`Moving tile [${c.safeLetter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
+        c.posX = newX; // eslint-disable-line
+        c.posY = newY; // eslint-disable-line
+      });
     },
   },
 };
@@ -742,9 +786,12 @@ main {
   }
 
   .player {
+    align-items: center;
     background: var(--yellow);
+    display: flex;
     height: 100%;
     flex-grow: 1;
+    justify-content: center;
     max-width: 50%;
     overflow: auto;
 
@@ -757,15 +804,25 @@ main {
     }
 
     > div {
-      min-height: 100%;
-      min-width: 100%;
+      background-size: 40px 40px;
+      background-image:
+        linear-gradient(to right, var(--white) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--white) 1px, transparent 1px);
+      min-height: 481px;
+      min-width: 481px;
       position: relative;
     }
   }
 
-  .scroll {
-    // height: 3200px;
-    // width: 3200px;
+  .scroll:before {
+    background: var(--orange);
+    content: '';
+    height: 200px;
+    opacity: 0.4;
+    pointer-events: none;
+    position: absolute;
+    top: 0; left: 0;
+    width: 200px;
   }
 
   .winner {
