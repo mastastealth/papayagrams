@@ -318,7 +318,7 @@ export default {
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
-      if (this.players.length === 2) count = 70; // 2P Testing
+      // if (this.players.length === 2) count = 70; // 2P Testing
 
       this.players.forEach((p) => {
         if (p === this.whoami) {
@@ -371,12 +371,14 @@ export default {
       }
     },
     dumpLetter(data, receive = false) {
-      const { index, board } = data;
-      if (index.whoami === this.whoami) return false;
+      const index = data.index || null;
+      const board = data.board || null;
+
+      if (data.whoami === this.whoami) return false;
       let dumped;
 
-      if (receive && index.whoami !== this.whoami) {
-        this.pile = [...index.pile];
+      if (receive) {
+        if (data.whoami !== this.whoami) this.pile = [...data.pile];
       } else {
         dumped = this[board ? 'myboard' : 'mypile'][index];
 
@@ -462,12 +464,21 @@ export default {
 
         this.winner = this.whoami;
       } else {
+        if (receive.who === this.whoami) return false;
+
         this.dboard = receive.board;
         this.scrollAreaWinner = receive.scrollArea;
         this.winner = receive.who;
+
+        if (this.isHosting) {
+          this.conn.forEach((c) => {
+            c.send({ key: 'papaya', data: receive });
+          });
+        }
       }
 
       this.finished = true;
+      return true;
     },
     rotten() {
       // Host makes the call
@@ -509,6 +520,7 @@ export default {
 
       this.winner = false;
       this.finished = false;
+      this.scrollAreaWinner = false;
 
       // Tell everyone else to do it too
       if (this.isHosting) {
@@ -746,6 +758,7 @@ main {
 
     > div {
       min-height: 100%;
+      min-width: 100%;
       position: relative;
     }
   }
