@@ -552,7 +552,7 @@ export default {
       });
     },
     send(message) {
-      if (this.players.length === 1) return false;
+      if (this.players.length === 1 && process.env.NODE_ENV === 'development') return false;
 
       this.$pnPublish({
         channel: `papaya${this.lobby}`,
