@@ -10,6 +10,7 @@
     </header>
 
     <main>
+      <!-- Header bar with the player names or greeting -->
       <div class="squad">
         <template v-if="players.length">
           <span
@@ -26,9 +27,13 @@
           <span class="letter" v-for="(letter, i) in greeting()" :key="i">{{letter}}</span>
         </template>
       </div>
+
+      <!-- Tile area -->
       <div class="boards">
         <div v-if="(mypile.length || myboard.length) && players.length" class="player">
           <button v-if="myboard.length" class="resize" @click="resize">Auto Resize ↔️</button>
+
+          <!-- Player board -->
           <div
             class="scroll"
             :style="scrollArea"
@@ -45,11 +50,14 @@
               @dumpLetter="dumpLetter"
             />
           </div>
+
+          <!-- "Winner" board -->
           <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
             <Letter
-              v-for="(letter, i) in dboard"
+              v-for="(tile, i) in dboard"
               :key="i"
-              :letterData="dboard[i]"
+              :letter="tile.letter"
+              :position="tile.pos"
             />
           </div>
         </div>
@@ -407,12 +415,11 @@ export default {
     papaya(receive = false) {
       if (!receive) {
         const board = [];
-
         this.$children.forEach((c) => {
           if (c.letter) {
             board.push({
-              pos: { x: c.$children[0].left, y: c.$children[0].top },
-              letter: c.letter.letter,
+              pos: [c.$children[0].left, c.$children[0].top],
+              letter: c.letter,
             });
           }
         });
@@ -426,33 +433,16 @@ export default {
           },
         };
 
-        // Send out call to finish
-        if (this.isHosting) {
-          this.conn.forEach((c) => {
-            c.send(papaya);
-          });
-        } else {
-          // Tell host to finish for you
-          this.conn.send(papaya);
-        }
+        this.send(papaya);
 
         this.winner = this.whoami;
       } else {
-        if (receive.who === this.whoami) return false;
-
         this.dboard = receive.board;
         this.scrollAreaWinner = receive.scrollArea;
         this.winner = receive.who;
-
-        if (this.isHosting) {
-          this.conn.forEach((c) => {
-            c.send({ key: 'papaya', data: receive });
-          });
-        }
       }
 
       this.finished = true;
-      return true;
     },
     rotten() {
       // Host makes the call
