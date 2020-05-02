@@ -11,16 +11,16 @@
 
     <main>
       <div class="squad">
-        <template v-if="pile.length && players.length">
+        <template v-if="players.length">
           <span
             v-for="(player, i) in players"
             :key="i"
             class="fruit"
-            :data-color="player.split(' ')[0]"
-            :data-fruit="player.split(' ')[1]"
-            :data-isme="whoami == player"
-            :data-winner="winner == player"
-          >{{player}}</span>
+            :data-color="player.name.split(' ')[0]"
+            :data-fruit="player.name.split(' ')[1]"
+            :data-isme="whoami.name == player.name"
+            :data-winner="winner == player.name"
+          >{{player.name}}</span>
         </template>
         <template v-else>
           <span class="letter" v-for="(letter, i) in greeting()" :key="i">{{letter}}</span>
@@ -53,6 +53,7 @@
             />
           </div>
         </div>
+
         <div v-else class="empty">
           <div v-if="!conn || mypile.length">
             <button @click="host">Host</button>
@@ -62,11 +63,14 @@
               <button @click="join">Join</button>
             </template>
           </div>
+
           <template v-if="conn && pile.length === 0">
             <span v-if="finished">No more papayas for you.</span>
             <span v-else>Waiting for papayas...</span>
           </template>
-          <span v-if="conn && pile.length">Papayas Ready.</span>
+
+          <span v-if="conn && pile.length && whoami.id">Papayas Ready.</span>
+          <span v-if="conn && pile.length && !whoami.id">Loading papayas...</span>
         </div>
       </div>
     </main>
@@ -169,8 +173,8 @@ export default {
       scrollArea: false,
       scrollAreaWinner: false,
       whoami: null,
-      colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple'],
-      fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon'],
+      colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'white', 'black'],
+      fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon', 'lime', 'papaya', 'kiwi'],
       peeling: false,
       dboard: [],
       finished: false,
@@ -193,76 +197,65 @@ export default {
 
       return greetings[n].toUpperCase().split('');
     },
+    createConnection() {
+      // Pubnub style
+      this.$pnSubscribe({
+        channels: [`papaya${this.lobby}`],
+        withPresence: true,
+      });
+
+      this.conn = this.$pnGetMessage(`papaya${this.lobby}`, this.gotData);
+      this.$pnGetPresence(`papaya${this.lobby}`, this.gotPresence);
+
+      this.whoami = {
+        name: this.makeName(),
+        id: this.$pnGetInstance().getUUID(),
+      };
+
+      this.players.push(this.whoami);
+    },
     host() {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
-      this.peer = new Peer(`papaya${this.lobby}`, {
-        debug: 2,
-        config: {
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-        },
-      });
-      this.isHosting = true;
-      this.whoami = this.makeName();
-      this.players.push(this.whoami);
-      this.shuffle(true);
       this.conn = [];
+      this.isHosting = true;
+      this.shuffle(true);
 
-      // When another player connects
-      this.peer.on('connection', (conn) => {
-        // Listen for data from that player
-        conn.on('data', (data) => {
-          this.gotData(conn, data);
-        });
-      });
+      this.createConnection();
     },
     join() {
-      this.peer = new Peer({ debug: 2 });
-      const conn = this.peer.connect(`papaya${this.lobby.toUpperCase()}`, { reliable: true });
-      this.conn = conn;
-      this.whoami = this.makeName();
-      this.players.push(this.whoami);
-
-      conn.on('open', () => {
-        conn.send({ key: 'connected' });
-      });
-
-      conn.on('data', (data) => {
-        this.gotData(conn, data);
-      });
-
-      setTimeout(() => {
-        if (this.pile.length === 0) {
-          console.warn('Connection failed.');
-          this.peer.destroy();
-          this.resetMP();
-        }
-      }, 10000);
+      this.createConnection();
     },
-    gotData(conn, data) {
-      console.log('Data received.', data);
+    gotPresence(ps) {
+      console.log('Presence:', ps);
+      // Only send connected message if it's your own presence
+      if (this.whoami.id === ps.uuid) {
+        this.send({
+          key: 'connected',
+          data: this.whoami,
+        });
+      }
+    },
+    gotData(d) {
+      const data = d.message || d;
+      console.log('Data received.', d);
+
+      // Don't listen for events sent from yourself
+      if (d.publisher === this.whoami.id) return false;
+      console.log('Data:', data.key, data.data);
 
       switch (data.key) {
         case 'connected':
-          // Send the pile of letters
-          conn.send({ key: 'pile', data: this.pile });
-          break;
-        case 'success':
-          // Add player who successfully joined
+          // Send the pile of letters to new client
+          if (this.isHosting) this.send({ key: 'pile', data: this.pile });
           this.players.push(data.data);
-          this.conn.push(conn);
-          this.conn.forEach((c) => {
-            c.send({ key: 'players', data: this.players });
-          });
           break;
         case 'pile':
+          // Set the pile from host
           this.pile = data.data;
-          conn.send({ key: 'success', data: this.whoami });
-          break;
-        case 'players':
-          this.players = [...data.data];
           break;
         case 'split':
-          this.split();
+          // Only split with a full pile (new game)
+          if (this.pile.length === 144) this.split();
           break;
         case 'peel':
           if (data.data === 'nothost') this.peel();
@@ -283,6 +276,8 @@ export default {
         default:
           break;
       }
+
+      return true;
     },
     resetMP() {
       this.conn = null;
@@ -293,8 +288,8 @@ export default {
       this.whoami = null;
     },
     makeName() {
-      const n = Math.floor(Math.random() * Math.floor(6));
-      const nn = Math.floor(Math.random() * Math.floor(6));
+      const n = Math.floor(Math.random() * Math.floor(8));
+      const nn = Math.floor(Math.random() * Math.floor(8));
       return `${this.colors[n]} ${this.fruits[nn]}`;
     },
     shuffle(fresh = false) {
@@ -315,22 +310,26 @@ export default {
         [this.pile[i], this.pile[j]] = [this.pile[j], this.pile[i]];
       }
     },
-    split() {
-      if (this.isHosting) {
-        // Send player list to everyone on split
-        this.conn.forEach((c) => {
-          c.send({ key: 'split', data: this.players });
-        });
-      }
+    async split() {
+      // Send player list to everyone on split
+      if (this.isHosting) this.send({ key: 'split', data: this.players });
 
-      this.players.sort(); // Get the same array?
+      // Get the same array?
+      this.players.sort((a, b) => {
+        if (a.id < b.id) return -1;
+        if (a.id > b.id) return 1;
+        // names must be equal
+        return 0;
+      });
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
       // if (this.players.length === 2) count = 70; // 2P Testing
 
+      const me = this.whoami.id;
+      debugger;
       this.players.forEach((p) => {
-        if (p === this.whoami) {
+        if (p.id === me) {
           for (let i = 0; i < count; i += 1) {
             this.mypile.push(this.pile.pop());
           }
@@ -342,11 +341,11 @@ export default {
         }
       });
 
+      await this.$nextTick();
+
       // Fix scroll area so we can't jack it up later
-      setTimeout(() => {
-        const myScroll = document.querySelector('.scroll');
-        this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
-      }, 300);
+      const myScroll = document.querySelector('.scroll');
+      this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
     },
     peel(receive = false) {
       this.peeling = true;
@@ -368,14 +367,11 @@ export default {
       if (!receive) {
         // Send out call to peel
         if (this.isHosting) {
-          this.conn.forEach((c) => {
-            c.send({ key: 'peel', data: 'host' });
-          });
-
+          this.send({ key: 'peel', data: 'host' }, null, true);
           this.peel(true);
         } else {
           // Tell host to peel for you
-          this.conn.send({ key: 'peel', data: 'nothost' });
+          this.send({ key: 'peel', data: 'nothost' }, this.conn);
         }
       }
     },
@@ -591,6 +587,15 @@ export default {
         this.$set(this.myboardPos, c.letter.id, [newX, newY]);
       });
     },
+    send(message) {
+      this.$pnPublish({
+        channel: `papaya${this.lobby}`,
+        message,
+      },
+      (status, response) => { //eslint-disable-line
+        // if (process.env.NODE_ENV === 'development') console.log('Published:', status, response);
+      });
+    },
   },
 };
 </script>
@@ -604,6 +609,7 @@ export default {
   --green: #B4C919;
   --blue: rgb(25, 131, 201);
   --purple: rgb(81, 25, 201);
+  --pink: rgb(195, 25, 201);
 }
 
 * {
@@ -746,6 +752,20 @@ main {
 
     &[data-color="purple"] {
       background: var(--purple);
+    }
+
+    &[data-color="pink"] {
+      background: var(--pink);
+    }
+
+    &[data-color="white"] {
+      background: white;
+      border: 1px solid #CCC;
+      color: #666;
+    }
+
+    &[data-color="black"] {
+      background: #222;
     }
   }
 }
