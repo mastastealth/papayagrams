@@ -157,6 +157,12 @@ export default {
   components: {
     Letter,
   },
+  mounted() {
+    if (window.location.pathname) {
+      this.lobby = window.location.pathname.replace('/', '');
+      if (window.location.hash) { this.host(); } else { this.join(); }
+    }
+  },
   data() {
     return {
       peer: null,
