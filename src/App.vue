@@ -6,9 +6,19 @@
 
       <aside>
         <span v-if="lobby"><strong>{{lobby}}</strong> - </span>
-        <span class="letter">A</span> × {{pile.length}}
+        <span @click="showDictionary = !showDictionary" class="pilecount">
+          <span class="letter">A</span> × {{pile.length}}
+        </span>
       </aside>
     </header>
+
+    <!-- Hacky iframe for now, maybe use a proper API if this becomes bigger? -->
+    <iframe
+      v-if="showDictionary"
+      class="dic"
+      src="//scrabble.hasbro.com/en-us/tools#dictionary"
+      frameborder="0" scrolling="no"
+    ></iframe>
 
     <main>
       <!-- Header bar with the player names or greeting -->
@@ -199,6 +209,7 @@ export default {
       dumpMode: false,
       lastDrop: null,
       winner: false,
+      showDictionary: false,
     };
   },
   methods: {
@@ -534,6 +545,8 @@ export default {
       });
     },
     send(message) {
+      if (this.players.length === 1) return false;
+
       this.$pnPublish({
         channel: `papaya${this.lobby}`,
         message,
@@ -541,6 +554,8 @@ export default {
       (status, response) => { //eslint-disable-line
         // if (process.env.NODE_ENV === 'development') console.log('Published:', status, response);
       });
+
+      return true;
     },
   },
 };
@@ -601,6 +616,14 @@ button {
   }
 }
 
+.dic {
+  position: fixed;
+  top: 60px; right: 0;
+  height: calc(100vh - 60px);
+  width: 400px;
+  z-index: 1;
+}
+
 header {
   background: var(--green);
   box-shadow: 0 0 5px rgb(100, 66, 3);
@@ -609,6 +632,7 @@ header {
   grid-area: header;
   padding: 0 20px;
   position: relative;
+  z-index: 2;
 
   h1 {
     line-height: 60px;
@@ -630,6 +654,16 @@ header {
     font-size: 1.25em;
     justify-self: flex-end;
     margin-left: auto;
+  }
+
+  .pilecount {
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 5px 10px 5px 5px;
+
+    &:hover {
+      background: var(--orange);
+    }
   }
 
   &:before {
