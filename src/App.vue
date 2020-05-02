@@ -865,6 +865,10 @@ main {
     max-width: 50%;
     overflow: auto;
 
+    @media screen and (max-width: 480px) {
+      display: block;
+    }
+
     &:not(:last-child) {
       margin-right: 10px;
     }
@@ -891,6 +895,11 @@ main {
       top: 5px; right: 25px;
       width: auto;
       z-index: 1;
+
+      @media screen and (max-width: 480px) {
+        height: 40px;
+        right: 5px;
+      }
     }
   }
 
