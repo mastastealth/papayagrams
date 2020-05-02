@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <header :data-peel="peeling" :data-dump="dumpMode">
-      <img src="logo.svg" alt="🇵">
+      <img src="logo.svg" alt="🇵" @click="resetGame">
       <h1>Papayagrams</h1>
 
       <aside>
@@ -279,28 +279,65 @@ export default {
     },
     gotPresence(ps) {
       console.log('Presence:', ps);
-      this.send({
-        key: 'connected',
-        data: this.whoami,
-      });
+
+      // Broadcast self when presence is first established
+      if (
+        ps.uuid === this.whoami.id
+        && ps.action === 'join'
+      ) {
+        this.$pnGetInstance().setState({
+          state: { iamhere: this.whoami },
+          channels: [`papaya${this.lobby}`],
+        });
+      }
+
+      // Received broadcast
+      if (
+        ps.uuid !== this.whoami.id
+        && ps.action === 'state-change'
+        && ps.state?.iamhere
+      ) {
+        // Add new player that has broadcasted themself
+        const newuser = ps.state.iamhere;
+        if (!this.players.some((p) => newuser.id === p.id)) this.players.push(newuser);
+        // If host, send the pile of letters to new client
+        if (this.isHosting) {
+          this.send({
+            key: 'pile',
+            data: {
+              pile: this.pile,
+              players: this.players,
+            },
+          });
+        }
+      }
+
+      // Remove a player that has left/timed out
+      if (ps.action === 'leave' || ps.action === 'timeout') {
+        let left = null;
+        this.players.forEach((p, i) => {
+          if (ps.uuid === p.id) left = i;
+        });
+
+        if (left !== null) this.players.splice(left, 1);
+      }
     },
     gotData(d) {
       const data = d.message || d;
-      console.log('Data received.', d);
+      console.info('Data received.', d);
 
       // Don't listen for events sent from yourself
       if (d.publisher === this.whoami.id) return false;
-      console.log('Data:', data.key, data.data);
+      console.log('Data Action Performed:', data.key, data.data);
 
       switch (data.key) {
-        case 'connected':
-          // Send the pile of letters to new client
-          if (this.isHosting) this.send({ key: 'pile', data: this.pile });
-          if (!this.players.some((p) => data.data.id === p.id)) this.players.push(data.data);
-          break;
         case 'pile':
           // Set the pile from host
-          if (!this.pile.length) this.pile = data.data;
+          if (!this.pile.length) this.pile = data.data.pile;
+          // Check for players we don't know about, and add them
+          data.data.players.forEach((all) => {
+            if (!this.players.some((p) => all.id === p.id)) this.players.push(all);
+          });
           break;
         case 'split':
           // Only split with a full pile (new game)
@@ -327,13 +364,16 @@ export default {
 
       return true;
     },
-    resetMP() {
-      this.conn = null;
-      this.peer = null;
-      this.lobby = null;
-      this.isHosting = false;
-      this.players = [];
-      this.whoami = null;
+    resetGame(disconnect = false) {
+      if (disconnect) {
+        this.$pnGetInstance().unsubscribeAll();
+        this.conn = null;
+        this.peer = null;
+        this.lobby = null;
+        this.isHosting = false;
+        this.players = [];
+        this.whoami = null;
+      }
     },
     makeName() {
       const n = Math.floor(Math.random() * Math.floor(8));
