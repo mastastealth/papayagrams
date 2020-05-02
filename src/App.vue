@@ -246,7 +246,9 @@ export default {
       switch (data.key) {
         case 'connected':
           // Send the pile of letters to new client
-          if (this.isHosting) this.send({ key: 'pile', data: this.pile });
+          if (this.isHosting) {
+            this.send({ key: 'pile', data: this.pile });
+          }
           this.players.push(data.data);
           break;
         case 'pile':
@@ -258,8 +260,7 @@ export default {
           if (this.pile.length === 144) this.split();
           break;
         case 'peel':
-          if (data.data === 'nothost') this.peel();
-          if (data.data === 'host') this.peel(true);
+          this.peel(data.data);
           break;
         case 'dump':
           this.dumpLetter(data.data, true);
@@ -327,7 +328,6 @@ export default {
       // if (this.players.length === 2) count = 70; // 2P Testing
 
       const me = this.whoami.id;
-      debugger;
       this.players.forEach((p) => {
         if (p.id === me) {
           for (let i = 0; i < count; i += 1) {
@@ -350,42 +350,27 @@ export default {
     peel(receive = false) {
       this.peeling = true;
 
-      if (receive) {
-        this.players.forEach((p) => {
-          if (p === this.whoami) {
-            this.mypile.push(this.pile.pop());
-          } else {
-            this.otherpiles[p].push(this.pile.pop());
-          }
-        });
-
-        setTimeout(() => {
-          this.peeling = false;
-        }, 1000);
-      }
-
-      if (!receive) {
-        // Send out call to peel
-        if (this.isHosting) {
-          this.send({ key: 'peel', data: 'host' }, null, true);
-          this.peel(true);
+      this.players.forEach((p) => {
+        if (p.id === this.whoami.id) {
+          this.mypile.push(this.pile.pop());
         } else {
-          // Tell host to peel for you
-          this.send({ key: 'peel', data: 'nothost' }, this.conn);
+          this.otherpiles[p].push(this.pile.pop());
         }
-      }
+      });
+
+      setTimeout(() => {
+        this.peeling = false;
+      }, 1000);
+
+      if (!receive) this.send({ key: 'peel', data: true });
     },
     dumpLetter(data, receive = false) {
-      const index = data.index ?? null;
-      const board = data.board ?? null;
-
-      if (data.whoami === this.whoami) return false;
-      let dumped;
-
       if (receive) {
-        if (data.whoami !== this.whoami) this.pile = [...data.pile];
+        this.pile = [...data];
       } else {
-        dumped = this[board ? 'myboard' : 'mypile'][index];
+        const index = data.index ?? null;
+        const board = data.board ?? null;
+        const dumped = this[board ? 'myboard' : 'mypile'][index];
 
         // Grab 3
         this.mypile.push(this.pile.pop());
@@ -400,30 +385,13 @@ export default {
         this[board ? 'myboard' : 'mypile'].splice(index, 1);
 
         this.dumpMode = false;
-      }
 
-      if (this.isHosting) {
-        this.conn.forEach((c) => {
-          c.send({
-            key: 'dump',
-            data: {
-              pile: this.pile,
-              whoami: (receive) ? index.whoami : this.whoami,
-            },
-          });
-        });
-      } else {
-        if (receive) return false;
-        this.conn.send({
+        // Now tell everyone to update their pile
+        this.send({
           key: 'dump',
-          data: {
-            pile: this.pile,
-            whoami: this.whoami,
-          },
+          data: this.pile,
         });
       }
-
-      return true;
     },
     placeLetter(data) {
       const { key: index, el } = data;
