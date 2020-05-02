@@ -6,7 +6,7 @@
 
       <aside>
         <span v-if="lobby"><strong>{{lobby}}</strong> - </span>
-        <span @click="showDictionary = !showDictionary" class="pilecount">
+        <span @click="showDictionary = !showDictionary" class="pilecount" :class="pshake">
           <span class="letter">A</span> × {{pile.length}}
         </span>
       </aside>
@@ -158,9 +158,9 @@ export default {
     Letter,
   },
   mounted() {
-    if (window.location.pathname) {
+    if (window.location.pathname.length > 1) {
       this.lobby = window.location.pathname.replace('/', '');
-      if (window.location.hash) { this.host(); } else { this.join(); }
+      if (window.location.hash === '#host') { this.host(); } else { this.join(); }
     }
   },
   data() {
@@ -216,6 +216,7 @@ export default {
       lastDrop: null,
       winner: false,
       showDictionary: false,
+      pshake: false,
     };
   },
   methods: {
@@ -564,6 +565,14 @@ export default {
       return true;
     },
   },
+  watch: {
+    pile() {
+      this.pshake = 'animated tada';
+      setTimeout(() => {
+        this.pshake = false;
+      }, 1000);
+    },
+  },
 };
 </script>
 
@@ -620,6 +629,11 @@ button {
     border-color: #666;
     opacity: 0.75;
   }
+
+  @media screen and (max-width: 480px) {
+    font-size: 1rem;
+    padding: 5px 10px;
+  }
 }
 
 .dic {
@@ -640,10 +654,14 @@ header {
   position: relative;
   z-index: 2;
 
+  @media screen and (max-width: 480px) {
+    padding: 0 10px;
+  }
+
   h1 {
     line-height: 60px;
     @media screen and (max-width: 480px) {
-      font-size: 24px;
+      display: none
     }
   }
 
@@ -660,6 +678,10 @@ header {
     font-size: 1.25em;
     justify-self: flex-end;
     margin-left: auto;
+
+    @media screen and (max-width: 480px) {
+      font-size: 1em;
+    }
   }
 
   .pilecount {
@@ -761,6 +783,10 @@ main {
       background: #222;
     }
   }
+
+  .letter {
+    margin: 2px;
+  }
 }
 
 .letter {
@@ -846,6 +872,7 @@ main {
       position: absolute;
       top: 5px; right: 25px;
       width: auto;
+      z-index: 1;
     }
   }
 
@@ -865,13 +892,25 @@ footer {
   user-select: none;
   width: 100%;
 
+  @media screen and (max-width: 480px) {
+    flex-direction: column;
+  }
+
   button {
     margin: 0 5px;
     padding: 10px 50px;
+
+    @media screen and (max-width: 480px) {
+      padding: 10px 30px;
+    }
   }
 
   .hand {
     flex-grow: 1;
+
+    @media screen and (max-width: 480px) {
+      margin-bottom: 5px;
+    }
   }
 }
 </style>
