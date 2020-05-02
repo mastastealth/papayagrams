@@ -88,6 +88,8 @@
               <input type="text" v-model="lobby" maxlength="5">
               <button @click="join">Join</button>
             </template>
+
+            <button @click="host(false)" style="background: var(--red)">Solo Test</button>
           </div>
 
           <template v-if="conn && pile.length === 0">
@@ -117,7 +119,10 @@
 
       <aside class="buttons">
         <button
-          v-if="isHosting && pile.length === 144"
+          v-if="(
+            isHosting && pile.length === 144)
+            || (whoami.id === 'test-mode' && pile.length === 14)
+          "
           @click="split"
         >Split</button>
 
@@ -250,13 +255,24 @@ export default {
 
       this.players.push(this.whoami);
     },
-    host() {
+    host(online = true) {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
       this.conn = [];
       this.isHosting = true;
       this.shuffle(true);
 
-      this.createConnection();
+      if (online) {
+        this.createConnection();
+      } else {
+        // Dummy user
+        this.whoami = {
+          name: this.makeName(),
+          id: 'test-mode',
+        };
+
+        this.players.push(this.whoami);
+        this.pile.splice(0, 130);
+      }
     },
     join() {
       this.createConnection();
@@ -356,6 +372,7 @@ export default {
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
+      if (this.players.length === 1) count = 10;
       // if (this.players.length === 2) count = 70; // 2P Testing
 
       const me = this.whoami.id;
@@ -552,14 +569,15 @@ export default {
       });
     },
     send(message) {
-      if (this.players.length === 1 && process.env.NODE_ENV === 'development') return false;
+      // Don't send stuff if you start a solo game
+      if (this.players.length === 1 && this.pile.length < 144) return false;
 
       this.$pnPublish({
         channel: `papaya${this.lobby}`,
         message,
       },
-      (status, response) => { //eslint-disable-line
-        // if (process.env.NODE_ENV === 'development') console.log('Published:', status, response);
+      (status, response) => {
+        if (process.env.NODE_ENV === 'development') console.log('Published:', status, response);
       });
 
       return true;
