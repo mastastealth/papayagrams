@@ -115,7 +115,7 @@
         </template>
 
         <button
-          v-if="finished"
+          v-if="finished && myboard.length"
           style="background: var(--red);"
           @click="rotten"
         >Rotten Papaya</button>
@@ -145,6 +145,7 @@ export default {
       lobby: null,
       isHosting: false,
       players: [],
+      letterTEST: { A: 5, B: 4, C: 1 },
       letters: {
         A: 13,
         B: 3,
@@ -445,30 +446,20 @@ export default {
       this.finished = true;
     },
     rotten() {
-      // Host makes the call
-      if (this.isHosting) {
-        if (this.winner === this.whoami) {
-          this.rotting(this.whoami);
-        } else {
-          this.conn.forEach((c) => {
-            c.send({ key: 'rotten', data: this.winner });
-          });
-        }
-      }
-    },
-    rotting(who) {
-      if (who !== this.whoami) return false;
-      // The fake winner now clears his board and sends his pile back
-      if (this.isHosting) {
-        if (this.isHosting) {
-          this.conn.forEach((c) => {
-            c.send({ key: 'ilied', data: this.myboard });
-          });
-        }
-      } else {
-        this.conn.send({ key: 'ilied', data: this.myboard });
+      // If I AM rotten, start rotting
+      if (this.winner.id === this.whoami.id) {
+        this.rotting(this.whoami);
       }
 
+      // Let everyone know something is rotten
+      this.send({ key: 'rotten', data: this.winner });
+    },
+    rotting(who) {
+      // Don't rot if you aren't the fake winner
+      if (who.id !== this.whoami.id) return false;
+
+      // The fake winner now clears his board and sends his pile back
+      this.send({ key: 'ilied', data: this.myboard });
       this.winner = false;
       this.mypile = [];
       this.myboard = [];
@@ -476,22 +467,15 @@ export default {
 
       return true;
     },
-    rotPlayer(data) {
+    rotPlayer(board) {
       // Add all the pieces of rotten papaya back into pile
-      data.forEach((tile) => {
+      board.forEach((tile) => {
         this.pile.push(tile);
       });
 
       this.winner = false;
       this.finished = false;
       this.scrollAreaWinner = false;
-
-      // Tell everyone else to do it too
-      if (this.isHosting) {
-        this.conn.forEach((c) => {
-          c.send({ key: 'ilied', data });
-        });
-      }
     },
     roundTo(num, r) {
       const resto = num % r;
