@@ -1,6 +1,7 @@
 <template>
   <div id="app">
     <header :data-peel="peeling" :data-dump="dumpMode">
+      <img src="logo.svg" alt="🇵">
       <h1>Papayagrams</h1>
 
       <aside>
@@ -16,7 +17,7 @@
           <span
             v-for="(player, i) in players"
             :key="i"
-            class="fruit"
+            class="fruit animated bounceIn"
             :data-color="player.name.split(' ')[0]"
             :data-fruit="player.name.split(' ')[1]"
             :data-isme="whoami.name == player.name"
@@ -24,14 +25,21 @@
           >{{player.name}}</span>
         </template>
         <template v-else>
-          <span class="letter" v-for="(letter, i) in greeting()" :key="i">{{letter}}</span>
+          <span
+            class="letter animated bounceInDown"
+            v-for="(letter, i) in greeting()"
+            :key="i"
+            :style="`animation-delay: ${50 * i}ms`"
+          >
+            {{letter}}
+          </span>
         </template>
       </div>
 
       <!-- Tile area -->
       <div class="boards">
         <div v-if="(mypile.length || myboard.length) && players.length" class="player">
-          <button v-if="myboard.length" class="resize" @click="resize">Auto Resize ↔️</button>
+          <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
 
           <!-- Player board -->
           <div
@@ -93,6 +101,7 @@
           :dumpMode="dumpMode"
           @dumpLetter="dumpLetter"
           @placeLetter="placeLetter"
+          :style="`animation-delay: ${myboard.length ? 0 : 50 * i}ms`"
         />
       </aside>
 
@@ -236,13 +245,10 @@ export default {
     },
     gotPresence(ps) {
       console.log('Presence:', ps);
-      // Only send connected message if it's your own presence
-      if (this.whoami.id === ps.uuid) {
-        this.send({
-          key: 'connected',
-          data: this.whoami,
-        });
-      }
+      this.send({
+        key: 'connected',
+        data: this.whoami,
+      });
     },
     gotData(d) {
       const data = d.message || d;
@@ -255,14 +261,12 @@ export default {
       switch (data.key) {
         case 'connected':
           // Send the pile of letters to new client
-          if (this.isHosting) {
-            this.send({ key: 'pile', data: this.pile });
-          }
-          this.players.push(data.data);
+          if (this.isHosting) this.send({ key: 'pile', data: this.pile });
+          if (!this.players.some((p) => data.data.id === p.id)) this.players.push(data.data);
           break;
         case 'pile':
           // Set the pile from host
-          this.pile = data.data;
+          if (!this.pile.length) this.pile = data.data;
           break;
         case 'split':
           // Only split with a full pile (new game)
@@ -613,6 +617,13 @@ header {
     }
   }
 
+  img {
+    display: inline-block;
+    margin-right: 10px;
+    max-width: 40px;
+    vertical-align: middle;
+  }
+
   aside {
     align-items: center;
     display: flex;
@@ -783,6 +794,7 @@ main {
       background-image:
         linear-gradient(to right, var(--white) 1px, transparent 1px),
         linear-gradient(to bottom, var(--white) 1px, transparent 1px);
+      box-shadow: 0 0 10px rgb(189, 104, 0);
       min-height: 481px;
       min-width: 481px;
       position: relative;

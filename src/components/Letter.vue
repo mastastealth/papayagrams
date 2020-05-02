@@ -21,6 +21,17 @@ export default {
   components: {
     VueDraggableResizable,
   },
+  mounted() {
+    // Animate non-board tiles
+    if (this.position) return false;
+
+    this.$el.classList.add('animated', 'bounceInUp');
+    setTimeout(() => {
+      this.$el.classList.remove('animated', 'bounceInUp');
+    }, 1000 + (100 * this.letterKey));
+
+    return true;
+  },
   data() {
     return {
       grid: [40, 40],
