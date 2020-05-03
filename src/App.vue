@@ -268,6 +268,7 @@ export default {
       };
 
       this.players.push(this.whoami);
+      document.title = 'Papayagrams - Waiting...';
     },
     host(online = true) {
       this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -383,6 +384,12 @@ export default {
       return true;
     },
     resetGame(disconnect = false, receive = false) {
+      this.myboard = [];
+      this.mypile = [];
+      this.myboardPos = {};
+      this.otherpiles = {};
+      this.pile = [];
+
       if (disconnect) {
         this.$pnGetInstance().unsubscribeAll();
         this.conn = null;
@@ -391,18 +398,15 @@ export default {
         this.isHosting = false;
         this.players = [];
         this.whoami = null;
+        document.title = 'Papayagrams';
       } else {
-        this.myboard = [];
-        this.mypile = [];
-        this.myboardPos = {};
-        this.otherpiles = {};
-
         this.shuffle(true);
         if (this.whoami.id === 'test-mode') {
           this.pile.splice(0, 130);
         } else if (!receive) {
           this.send({ key: 'new', data: this.pile });
         }
+        document.title = 'Papayagrams - Waiting...';
       }
 
       this.finished = false;
@@ -471,6 +475,8 @@ export default {
       // Fix scroll area so we can't jack it up later
       const myScroll = document.querySelector('.scroll');
       this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
+
+      document.title = `Papayagrams (${this.pile.length})`;
     },
     peel(receive = false) {
       this.peeling = true;
@@ -488,6 +494,7 @@ export default {
       }, 1000);
 
       if (!receive) this.send({ key: 'peel', data: true });
+      document.title = `Papayagrams (${this.pile.length})`;
     },
     dumpLetter(data, receive = false) {
       if (receive) {
@@ -517,6 +524,8 @@ export default {
           data: this.pile,
         });
       }
+
+      document.title = `Papayagrams (${this.pile.length})`;
     },
     placeLetter(data) {
       const { key: index, el } = data;
@@ -592,6 +601,7 @@ export default {
       this.winner = false;
       this.finished = false;
       this.scrollAreaWinner = false;
+      document.title = `Papayagrams (${this.pile.length})`;
     },
     roundTo(num, r) {
       const resto = num % r;
