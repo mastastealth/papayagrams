@@ -252,6 +252,9 @@ export default {
 
       return greetings[n].toUpperCase().split('');
     },
+    debug(msg) {
+      if (this.env === 'development') { console.log(msg); }
+    },
     createConnection() {
       // Pubnub style
       this.$pnSubscribe({
@@ -293,7 +296,7 @@ export default {
       this.createConnection();
     },
     gotPresence(ps) {
-      console.log('Presence:', ps);
+      this.debug('Presence:', ps);
 
       // Broadcast self when presence is first established
       if (
@@ -343,7 +346,7 @@ export default {
 
       // Don't listen for events sent from yourself
       if (d.publisher === this.whoami.id) return false;
-      console.log('Data Action Performed:', data.key, data.data);
+      this.debug('Data Action Performed:', data.key, data.data);
 
       switch (data.key) {
         case 'pile':
@@ -626,7 +629,7 @@ export default {
       // Calculate and set new dimensions (6 tile padding)
       const h = e[2] - e[0];
       const w = e[1] - e[3];
-      console.log(`Play area was ${w / 40} by ${h / 40} tiles. Enlarging to ${(w + 400) / 40} by ${(h + 400) / 40} tiles.`);
+      this.debug(`Play area was ${w / 40} by ${h / 40} tiles. Enlarging to ${(w + 400) / 40} by ${(h + 400) / 40} tiles.`);
       this.scrollArea = `height: ${h + 400 + 1}px; width: ${w + 400 + 1}px;`;
       await this.$nextTick();
 
@@ -651,7 +654,7 @@ export default {
         const {
           realX, realY, newX, newY,
         } = savedPos[i];
-        console.log(`Moving tile [${c.letter.letter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
+        this.debug(`Moving tile [${c.letter.letter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
         this.$set(this.myboardPos, c.letter.id, [newX, newY]);
       });
     },
@@ -664,7 +667,7 @@ export default {
         message,
       },
       (status, response) => {
-        if (process.env.NODE_ENV === 'development') console.log('Published:', status, response);
+        this.debug('Published:', status, response);
       });
 
       return true;
