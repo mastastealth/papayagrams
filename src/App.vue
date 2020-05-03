@@ -54,6 +54,7 @@
           <!-- Player board -->
           <div
             class="scroll"
+            :data-winner="whoami.id === winner.id"
             :style="scrollArea"
             v-show="!scrollAreaWinner"
             ref="playerScroll"
@@ -89,7 +90,11 @@
               <button @click="join">Join</button>
             </template>
 
-            <button @click="host(false)" style="background: var(--red)">Solo Test</button>
+            <button
+              v-if="env === 'development'"
+              @click="host(false)"
+              style="background: var(--red)"
+            >Solo Test</button>
           </div>
 
           <template v-if="conn && pile.length === 0">
@@ -140,6 +145,12 @@
 
         <button
           v-if="finished && myboard.length"
+          style="background: var(--green); border: 1px solid darkgreen;"
+          @click="resetGame(false)"
+        >New Game</button>
+
+        <button
+          v-if="finished && myboard.length && whoami.id !== winner.id"
           style="background: var(--red);"
           @click="rotten"
         >Rotten Papaya</button>
@@ -223,6 +234,9 @@ export default {
       showDictionary: false,
       pshake: false,
     };
+  },
+  computed: {
+    env() { return process.env.NODE_ENV; },
   },
   methods: {
     greeting() {
@@ -358,13 +372,17 @@ export default {
         case 'ilied':
           this.rotPlayer(data.data);
           break;
+        case 'new':
+          this.resetGame(false, true);
+          this.pile = [...data.data];
+          break;
         default:
           break;
       }
 
       return true;
     },
-    resetGame(disconnect = false) {
+    resetGame(disconnect = false, receive = false) {
       if (disconnect) {
         this.$pnGetInstance().unsubscribeAll();
         this.conn = null;
@@ -373,7 +391,21 @@ export default {
         this.isHosting = false;
         this.players = [];
         this.whoami = null;
+      } else {
+        this.myboard = [];
+        this.mypile = [];
+        this.myboardPos = {};
+        this.otherpiles = {};
+
+        this.shuffle(true);
+        if (this.whoami.id === 'test-mode') {
+          this.pile.splice(0, 130);
+        } else if (!receive) {
+          this.send({ key: 'new', data: this.pile });
+        }
       }
+
+      this.finished = false;
     },
     makeName() {
       const n = Math.floor(Math.random() * Math.floor(8));
@@ -412,8 +444,13 @@ export default {
 
       let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
       if (this.players.length >= 7) count = 11;
+
+      // Testing modes
       if (this.players.length === 1) count = 10;
-      // if (this.players.length === 2) count = 70; // 2P Testing
+      if (this.players.length === 2 && this.env) {
+        this.pile.splice(0, 120);
+        count = 10;
+      }
 
       const me = this.whoami.id;
       this.players.forEach((p) => {
@@ -943,7 +980,7 @@ main {
     }
   }
 
-  .winner {
+  .winner, [data-winner] {
     background: var(--green);
   }
 }
