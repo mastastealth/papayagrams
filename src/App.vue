@@ -27,11 +27,13 @@
           <span
             v-for="(player, i) in players"
             :key="i"
-            class="fruit animated bounceIn"
+            class="fruit animated"
+            :class="winner.id == player.id ? 'pulse infinite' : 'bounceIn'"
             :data-color="player.name.split(' ')[0]"
             :data-fruit="player.name.split(' ')[1]"
-            :data-isme="whoami.name == player.name"
-            :data-winner="winner == player.name"
+            :data-isme="whoami.id == player.id"
+            :data-winner="winner.id == player.id"
+            :data-notwinner="winner && winner.id !== player.id"
           >{{player.name}}</span>
         </template>
         <template v-else>
@@ -51,12 +53,21 @@
         <div v-if="(mypile.length || myboard.length) && players.length" class="player">
           <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
 
+          <!-- "Winner" board -->
+          <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
+            <Letter
+              v-for="(tile, i) in dboard"
+              :key="i"
+              :letter="tile.letter"
+              :position="tile.pos"
+            />
+          </div>
+
           <!-- Player board -->
           <div
             class="scroll"
             :data-winner="whoami.id === winner.id"
             :style="scrollArea"
-            v-show="!scrollAreaWinner"
             ref="playerScroll"
           >
             <Letter
@@ -67,16 +78,6 @@
               :dumpMode="dumpMode"
               :position="myboardPos[letter.id]"
               @dumpLetter="dumpLetter"
-            />
-          </div>
-
-          <!-- "Winner" board -->
-          <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
-            <Letter
-              v-for="(tile, i) in dboard"
-              :key="i"
-              :letter="tile.letter"
-              :position="tile.pos"
             />
           </div>
         </div>
@@ -392,6 +393,8 @@ export default {
       this.myboardPos = {};
       this.otherpiles = {};
       this.pile = [];
+      this.scrollArea = false;
+      this.scrollAreaWinner = false;
 
       if (disconnect) {
         this.$pnGetInstance().unsubscribeAll();
@@ -849,7 +852,9 @@ main {
 
     &[data-isme]:after { content: '🌟'; margin-left: 5px; }
 
-    &[data-winner] { transform: scale(1.5); }
+    &[data-notwinner] {
+      filter: grayscale(80%) brightness(200%);
+    }
 
     &[data-color="red"] {
       background: var(--red);
@@ -995,6 +1000,18 @@ main {
 
   .winner, [data-winner] {
     background: var(--green);
+    z-index: 1;
+  }
+
+  .winner + .scroll {
+    background-color: var(--orange);
+    opacity: 0.5;
+    pointer-events: none;
+    position: absolute;
+    top: 10px; left: 10px;
+    transform: scale(0.4);
+    transform-origin: left top;
+    z-index: 2;
   }
 }
 
