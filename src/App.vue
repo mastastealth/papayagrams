@@ -4,7 +4,7 @@
       <img src="logo.svg" alt="🇵" @click="resetGame">
       <h1>Papayagrams</h1>
 
-      <aside>
+      <aside v-if="conn || this.pile.length">
         <span v-if="lobby"><strong>{{lobby}}</strong> - </span>
         <span @click="showDictionary = !showDictionary" class="pilecount" :class="pshake">
           <span class="letter">A</span> × {{pile.length}}
