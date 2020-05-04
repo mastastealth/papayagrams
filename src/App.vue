@@ -50,7 +50,11 @@
 
       <!-- Tile area -->
       <div class="boards">
-        <div v-if="(mypile.length || myboard.length) && players.length" class="player">
+        <div
+          v-if="(mypile.length || myboard.length) && players.length"
+          class="player"
+          :data-haswinner="!!winner"
+        >
           <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
 
           <!-- "Winner" board -->
@@ -392,10 +396,7 @@ export default {
       this.debug('Status:', s);
 
       // Broadcast self when status is connected
-      if (
-        s.category === 'PNConnectedCategory'
-        && s.subscribedChannels.includes(`papaya${this.lobby}`)
-      ) {
+      if (s.category === 'PNConnectedCategory') {
         this.conn = 'success';
         this.$pnGetInstance().setState({
           state: { iamhere: this.whoami },
@@ -403,7 +404,7 @@ export default {
         });
 
         setTimeout(() => {
-          if (this.conn === 'wait') {
+          if (this.conn === 'wait' || !this.pile.length) {
             console.warn('Timed out waiting.');
             this.resetGame(true);
           }
