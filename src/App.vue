@@ -87,7 +87,7 @@
             <button @click="host">Host</button>
 
             <template v-if="!isHosting">
-              <input type="text" v-model="lobby" maxlength="5">
+              <input type="text" v-model="inputLobby" maxlength="5">
               <button @click="join">Join</button>
             </template>
 
@@ -100,7 +100,10 @@
 
           <template v-if="conn && pile.length === 0">
             <span v-if="finished">No more papayas for you.</span>
-            <span v-else>Waiting for papayas...</span>
+            <span v-else>
+              <strong class="animated heartBeat infinite" style="display: inline-block;">🥭</strong>
+              Waiting for papayas...
+            </span>
           </template>
 
           <span v-if="conn && pile.length && whoami.id">Papayas Ready.</span>
@@ -176,7 +179,7 @@ export default {
   },
   mounted() {
     if (window.location.pathname.length > 1) {
-      this.lobby = window.location.pathname.replace('/', '');
+      this.inputLobby = window.location.pathname.replace('/', '');
       if (window.location.hash === '#host') { this.host(); } else { this.join(); }
     }
   },
@@ -184,7 +187,7 @@ export default {
     return {
       peer: null,
       conn: null,
-      lobby: null,
+      inputLobby: null,
       isHosting: false,
       players: [],
       letterTEST: { A: 5, B: 4, C: 1 },
@@ -238,6 +241,7 @@ export default {
   },
   computed: {
     env() { return process.env.NODE_ENV; },
+    lobby() { return this.inputLobby?.toUpperCase() || ''; },
   },
   methods: {
     greeting() {
@@ -253,8 +257,8 @@ export default {
 
       return greetings[n].toUpperCase().split('');
     },
-    debug(msg) {
-      if (this.env === 'development') { console.log(msg); }
+    debug(...msg) {
+      if (this.env === 'development') { console.log(...msg); }
     },
     createConnection() {
       // Pubnub style
@@ -263,8 +267,10 @@ export default {
         withPresence: true,
       });
 
-      this.conn = this.$pnGetMessage(`papaya${this.lobby}`, this.gotData);
+      this.conn = 'wait';
+      this.$pnGetMessage(`papaya${this.lobby}`, this.gotData);
       this.$pnGetPresence(`papaya${this.lobby}`, this.gotPresence);
+      this.$pnGetStatus(this.gotStatus);
 
       this.whoami = {
         name: this.makeName(),
@@ -275,7 +281,7 @@ export default {
       document.title = 'Papayagrams - Waiting...';
     },
     host(online = true) {
-      this.lobby = Math.random().toString(36).substr(2, 5).toUpperCase();
+      this.inputLobby = Math.random().toString(36).substr(2, 5).toUpperCase();
       this.conn = [];
       this.isHosting = true;
       this.shuffle(true);
@@ -298,17 +304,6 @@ export default {
     },
     gotPresence(ps) {
       this.debug('Presence:', ps);
-
-      // Broadcast self when presence is first established
-      if (
-        ps.uuid === this.whoami.id
-        && ps.action === 'join'
-      ) {
-        this.$pnGetInstance().setState({
-          state: { iamhere: this.whoami },
-          channels: [`papaya${this.lobby}`],
-        });
-      }
 
       // Received broadcast
       if (
@@ -352,10 +347,17 @@ export default {
       switch (data.key) {
         case 'pile':
           // Set the pile from host
+          console.log(!this.pile.length);
           if (!this.pile.length) this.pile = data.data.pile;
           // Check for players we don't know about, and add them
           data.data.players.forEach((all) => {
-            if (!this.players.some((p) => all.id === p.id)) this.players.push(all);
+            if (!this.players.some((p) => all.id === p.id)) {
+              this.players.push(all);
+            } else {
+              this.players.forEach((p, j) => {
+                if (p.id === all.id) this.players[j] = all;
+              });
+            }
           });
           break;
         case 'split':
@@ -387,6 +389,21 @@ export default {
 
       return true;
     },
+    gotStatus(s) {
+      this.debug('Status:', s);
+
+      // Broadcast self when status is connected
+      if (
+        s.category === 'PNConnectedCategory'
+        && s.subscribedChannels.includes(`papaya${this.lobby}`)
+      ) {
+        this.conn = 'success';
+        this.$pnGetInstance().setState({
+          state: { iamhere: this.whoami },
+          channels: [`papaya${this.lobby}`],
+        });
+      }
+    },
     resetGame(disconnect = false, receive = false) {
       this.myboard = [];
       this.mypile = [];
@@ -401,7 +418,7 @@ export default {
         this.$pnGetInstance().unsubscribeAll();
         this.conn = null;
         this.peer = null;
-        this.lobby = null;
+        this.inputLobby = null;
         this.isHosting = false;
         this.players = [];
         this.whoami = null;
