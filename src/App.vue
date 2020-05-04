@@ -395,6 +395,7 @@ export default {
       this.pile = [];
       this.scrollArea = false;
       this.scrollAreaWinner = false;
+      this.winner = false;
 
       if (disconnect) {
         this.$pnGetInstance().unsubscribeAll();
@@ -853,7 +854,9 @@ main {
     &[data-isme]:after { content: '🌟'; margin-left: 5px; }
 
     &[data-notwinner] {
-      filter: grayscale(80%) brightness(200%);
+      border-color: #999 !important;
+      background: #CCC !important;
+      color: #999 !important;
     }
 
     &[data-color="red"] {
