@@ -50,15 +50,14 @@
 
       <!-- Tile area -->
       <div class="boards">
-        <div
-          v-if="(mypile.length || myboard.length) && players.length"
-          class="player"
-          :data-haswinner="!!winner"
-        >
-          <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
+        <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
 
-          <!-- "Winner" board -->
-          <div class="winner" v-if="finished && dboard.length" :style="scrollAreaWinner">
+        <!-- "Winner" board -->
+        <div class="player iswinner" v-if="finished && dboard.length">
+          <div
+            class="winner"
+            :style="scrollAreaWinner"
+          >
             <Letter
               v-for="(tile, i) in dboard"
               :key="i"
@@ -66,7 +65,13 @@
               :position="tile.pos"
             />
           </div>
+        </div>
 
+        <div
+          v-if="(mypile.length || myboard.length) && players.length"
+          class="player"
+          :data-haswinner="!!winner"
+        >
           <!-- Player board -->
           <div
             class="scroll"
@@ -977,26 +982,33 @@ main {
     margin-bottom: 20px;
   }
 
+  .resize {
+    font-size: 1rem;
+    padding: 5px 10px;
+    position: absolute;
+    top: 5px; right: 25px;
+    width: auto;
+    z-index: 1;
+
+    @media screen and (max-width: 480px) {
+      height: 40px;
+      right: 5px;
+    }
+  }
+
   .player {
-    align-items: center;
     background: var(--yellow);
-    display: flex;
+    display: grid;
     height: 100%;
-    flex-grow: 1;
-    justify-content: center;
-    max-width: 50%;
     overflow: auto;
+    place-items: center;
 
     @media screen and (max-width: 480px) {
       display: block;
     }
 
-    &:not(:last-child) {
-      margin-right: 10px;
-    }
-
-    &:only-child {
-      max-width: 100%;
+    &:only-of-type {
+      width: 100%;
     }
 
     > div {
@@ -1009,20 +1021,6 @@ main {
       min-width: 481px;
       position: relative;
     }
-
-    .resize {
-      font-size: 1rem;
-      padding: 5px 10px;
-      position: absolute;
-      top: 5px; right: 25px;
-      width: auto;
-      z-index: 1;
-
-      @media screen and (max-width: 480px) {
-        height: 40px;
-        right: 5px;
-      }
-    }
   }
 
   .winner, [data-winner] {
@@ -1030,15 +1028,13 @@ main {
     z-index: 1;
   }
 
-  .winner + .scroll {
-    background-color: var(--orange);
-    opacity: 0.5;
-    pointer-events: none;
-    position: absolute;
-    top: 10px; left: 10px;
-    transform: scale(0.4);
-    transform-origin: left top;
-    z-index: 2;
+  .iswinner {
+    background-color: var(--green);
+    border-right: 1px solid darkgreen;
+    flex-shrink: 0;
+    width: 60%;
+
+    > div { box-shadow: 0 0 10px rgb(5, 66, 1); }
   }
 }
 
@@ -1052,6 +1048,7 @@ footer {
   position: fixed;
   user-select: none;
   width: 100%;
+  z-index: 2;
 
   @media screen and (max-width: 480px) {
     flex-direction: column;
