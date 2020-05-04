@@ -179,6 +179,7 @@
 </template>
 
 <script>
+import { Howl } from 'howler';
 import Letter from './components/Letter.vue';
 
 export default {
@@ -191,6 +192,17 @@ export default {
       this.inputLobby = window.location.pathname.replace('/', '');
       if (window.location.hash === '#host') { this.host(); } else { this.join(); }
     }
+
+    this.sound = new Howl({
+      src: [require('./assets/sfx.mp3')], // eslint-disable-line
+      sprite: {
+        shuffle: [0, 1534],
+        place: [1635, 300],
+        dump: [2160, 300],
+        peel: [2590, 700],
+      },
+      volume: 0.75,
+    });
   },
   data() {
     return {
@@ -246,6 +258,7 @@ export default {
       winner: false,
       showDictionary: false,
       pshake: false,
+      sound: null,
     };
   },
   computed: {
@@ -356,7 +369,10 @@ export default {
       switch (data.key) {
         case 'pile':
           // Set the pile from host
-          if (!this.pile.length) this.pile = data.data.pile;
+          if (!this.pile.length) {
+            this.pile = data.data.pile;
+            this.sound.play('shuffle');
+          }
           // Check for players we don't know about, and add them
           data.data.players.forEach((all) => {
             if (!this.players.some((p) => all.id === p.id)) {
@@ -462,6 +478,8 @@ export default {
             });
           }
         });
+
+        this.sound.play('shuffle');
       }
 
       // Durstenfled shuffle
@@ -515,6 +533,7 @@ export default {
       document.title = `Papayagrams (${this.pile.length})`;
     },
     peel(receive = false) {
+      this.sound.play('peel');
       this.peeling = true;
 
       this.players.forEach((p) => {
@@ -533,6 +552,8 @@ export default {
       document.title = `Papayagrams (${this.pile.length})`;
     },
     dumpLetter(data, receive = false) {
+      this.sound.play('dump');
+
       if (receive) {
         this.pile = [...data];
       } else {
@@ -573,6 +594,7 @@ export default {
       const newLetter = this.mypile.splice(index, 1);
       this.$set(this.myboardPos, newLetter[0].id, [x, y]);
       this.myboard.push(...newLetter);
+      this.sound.play('place');
     },
     papaya(receive = false) {
       if (!receive) {
