@@ -347,7 +347,6 @@ export default {
       switch (data.key) {
         case 'pile':
           // Set the pile from host
-          console.log(!this.pile.length);
           if (!this.pile.length) this.pile = data.data.pile;
           // Check for players we don't know about, and add them
           data.data.players.forEach((all) => {
@@ -402,6 +401,13 @@ export default {
           state: { iamhere: this.whoami },
           channels: [`papaya${this.lobby}`],
         });
+
+        setTimeout(() => {
+          if (this.conn === 'wait') {
+            console.warn('Timed out waiting.');
+            this.resetGame(true);
+          }
+        }, 10000);
       }
     },
     resetGame(disconnect = false, receive = false) {
