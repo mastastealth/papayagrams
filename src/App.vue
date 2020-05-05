@@ -50,7 +50,9 @@
 
       <!-- Tile area -->
       <div class="boards">
-        <button v-if="myboard.length" class="resize" @click="resize">Auto Resize</button>
+        <button v-if="!finished && myboard.length" class="resize" @click="resize">
+          Auto Resize
+        </button>
 
         <!-- "Winner" board -->
         <div class="player iswinner" v-if="finished && dboard.length">
@@ -108,7 +110,16 @@
           </div>
 
           <template v-if="conn && pile.length === 0">
-            <span v-if="finished">No more papayas for you.</span>
+            <span v-if="finished">
+              No more papayas for you. <br>
+              <small>
+                <strong
+                  class="animated flash slower infinite"
+                  style="display: inline-block;"
+                >🥭</strong>
+                Waiting for the other players to finish...
+              </small>
+            </span>
             <span v-else>
               <strong class="animated heartBeat infinite" style="display: inline-block;">🥭</strong>
               Waiting for papayas...
@@ -163,7 +174,7 @@
         >New Game</button>
 
         <button
-          v-if="finished && myboard.length && whoami.id !== winner.id"
+          v-if="finished && (myboard.length || mypile.length) && whoami.id !== winner.id"
           style="background: var(--red);"
           @click="rotten"
         >Rotten Papaya</button>
@@ -276,6 +287,7 @@ export default {
       dumpMode: false,
       lastDrop: null,
       winner: false,
+      losers: [],
       showDictionary: false,
       pshake: false,
       sound: null,
@@ -303,6 +315,7 @@ export default {
       if (this.env === 'development') { console.log(...msg); }
     },
     resetGame(disconnect = false, receive = false) {
+      this.dboard = [];
       this.myboard = [];
       this.mypile = [];
       this.myboardPos = {};
@@ -311,6 +324,7 @@ export default {
       this.scrollArea = false;
       this.scrollAreaWinner = false;
       this.winner = false;
+      this.losers = [];
 
       if (disconnect) {
         this.dcGame();
@@ -641,7 +655,12 @@ main {
     height: 100%;
     justify-content: center;
     max-width: 100%;
+    text-align: center;
     width: 100%;
+
+    small {
+      font-size: 0.5em;
+    }
   }
 
   input, button {

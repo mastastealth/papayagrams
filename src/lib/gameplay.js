@@ -48,9 +48,9 @@ export default {
           this.mypile.push(this.pile.pop());
         }
       } else {
-        if (!this.otherpiles[p]) this.otherpiles[p] = [];
+        if (!this.otherpiles[p.id]) this.otherpiles[p.id] = [];
         for (let i = 0; i < count; i += 1) {
-          this.otherpiles[p].push(this.pile.pop());
+          this.otherpiles[p.id].push(this.pile.pop());
         }
       }
     });
@@ -68,10 +68,13 @@ export default {
     this.peeling = true;
 
     this.players.forEach((p) => {
-      if (p.id === this.whoami.id) {
-        this.mypile.push(this.pile.pop());
-      } else {
-        this.otherpiles[p].push(this.pile.pop());
+      // Only people who HAVENT lost can peel
+      if (!this.losers.includes(p.id)) {
+        if (p.id === this.whoami.id) {
+          this.mypile.push(this.pile.pop());
+        } else {
+          this.otherpiles[p.id].push(this.pile.pop());
+        }
       }
     });
 
@@ -169,11 +172,20 @@ export default {
     this.send({ key: 'rotten', data: this.winner });
   },
   rotting(who) {
+    this.losers.push(who.id);
+
     // Don't rot if you aren't the fake winner
     if (who.id !== this.whoami.id) return false;
 
     // The fake winner now clears his board and sends his pile back
-    this.send({ key: 'ilied', data: this.myboard });
+    this.send({
+      key: 'ilied',
+      data: {
+        board: this.myboard,
+        who,
+      },
+    });
+
     this.winner = false;
     this.mypile = [];
     this.myboard = [];
@@ -181,12 +193,15 @@ export default {
 
     return true;
   },
-  rotPlayer(board) {
+  rotPlayer(data) {
+    const { board, who } = data;
+
     // Add all the pieces of rotten papaya back into pile
     board.forEach((tile) => {
       this.pile.push(tile);
     });
 
+    this.losers.push(who.id);
     this.winner = false;
     this.finished = false;
     this.scrollAreaWinner = false;
