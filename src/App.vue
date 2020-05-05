@@ -187,10 +187,24 @@
 import { Howl } from 'howler';
 import Letter from './components/Letter.vue';
 
+import gameplay from './lib/gameplay';
+import net from './lib/net';
+
 export default {
   name: 'App',
   components: {
     Letter,
+  },
+  created() {
+    const methods = {
+      ...gameplay,
+      ...net,
+    };
+
+    // Bind all methods to this
+    Object.keys(methods).forEach((fn) => {
+      this[fn] = methods[fn].bind(this);
+    });
   },
   mounted() {
     if (window.location.pathname.length > 1) {
@@ -288,156 +302,6 @@ export default {
     debug(...msg) {
       if (this.env === 'development') { console.log(...msg); }
     },
-    createConnection() {
-      // Pubnub style
-      this.$pnSubscribe({
-        channels: [`papaya${this.lobby}`],
-        withPresence: true,
-      });
-
-      this.conn = 'wait';
-      this.$pnGetMessage(`papaya${this.lobby}`, this.gotData);
-      this.$pnGetPresence(`papaya${this.lobby}`, this.gotPresence);
-      this.$pnGetStatus(this.gotStatus);
-
-      this.whoami = {
-        name: this.makeName(),
-        id: this.$pnGetInstance().getUUID(),
-      };
-
-      this.players.push(this.whoami);
-      document.title = 'Papayagrams - Waiting...';
-    },
-    host(online = true) {
-      this.inputLobby = Math.random().toString(36).substr(2, 5).toUpperCase();
-      this.conn = [];
-      this.isHosting = true;
-      this.shuffle(true);
-
-      if (online) {
-        this.createConnection();
-      } else {
-        // Dummy user
-        this.whoami = {
-          name: this.makeName(),
-          id: 'test-mode',
-        };
-
-        this.players.push(this.whoami);
-        this.pile.splice(0, 130);
-      }
-    },
-    join() {
-      this.createConnection();
-    },
-    gotPresence(ps) {
-      this.debug('Presence:', ps);
-
-      // Received broadcast
-      if (
-        ps.uuid !== this.whoami.id
-        && ps.action === 'state-change'
-        && ps.state?.iamhere
-      ) {
-        // Add new player that has broadcasted themself
-        const newuser = ps.state.iamhere;
-        if (!this.players.some((p) => newuser.id === p.id)) this.players.push(newuser);
-        // If host, send the pile of letters to new client
-        if (this.isHosting) {
-          this.send({
-            key: 'pile',
-            data: {
-              pile: this.pile,
-              players: this.players,
-            },
-          });
-        }
-      }
-
-      // Remove a player that has left/timed out
-      if (ps.action === 'leave' || ps.action === 'timeout') {
-        let left = null;
-        this.players.forEach((p, i) => {
-          if (ps.uuid === p.id) left = i;
-        });
-
-        if (left !== null) this.players.splice(left, 1);
-      }
-    },
-    gotData(d) {
-      const data = d.message || d;
-      console.info('Data received.', d);
-
-      // Don't listen for events sent from yourself
-      if (d.publisher === this.whoami.id) return false;
-      this.debug('Data Action Performed:', data.key, data.data);
-
-      switch (data.key) {
-        case 'pile':
-          // Set the pile from host
-          if (!this.pile.length) {
-            this.pile = data.data.pile;
-            this.sound.play('shuffle');
-          }
-          // Check for players we don't know about, and add them
-          data.data.players.forEach((all) => {
-            if (!this.players.some((p) => all.id === p.id)) {
-              this.players.push(all);
-            } else {
-              this.players.forEach((p, j) => {
-                if (p.id === all.id) this.players[j] = all;
-              });
-            }
-          });
-          break;
-        case 'split':
-          // Only split with a full pile (new game)
-          if (this.pile.length === 144) this.split();
-          break;
-        case 'peel':
-          this.peel(data.data);
-          break;
-        case 'dump':
-          this.dumpLetter(data.data, true);
-          break;
-        case 'papaya':
-          this.papaya(data.data);
-          break;
-        case 'rotten':
-          this.rotting(data.data);
-          break;
-        case 'ilied':
-          this.rotPlayer(data.data);
-          break;
-        case 'new':
-          this.resetGame(false, true);
-          this.pile = [...data.data];
-          break;
-        default:
-          break;
-      }
-
-      return true;
-    },
-    gotStatus(s) {
-      this.debug('Status:', s);
-
-      // Broadcast self when status is connected
-      if (s.category === 'PNConnectedCategory') {
-        this.conn = 'success';
-        this.$pnGetInstance().setState({
-          state: { iamhere: this.whoami },
-          channels: [`papaya${this.lobby}`],
-        });
-
-        setTimeout(() => {
-          if (this.conn === 'wait' || !this.pile.length) {
-            console.warn('Timed out waiting.');
-            this.resetGame(true);
-          }
-        }, 10000);
-      }
-    },
     resetGame(disconnect = false, receive = false) {
       this.myboard = [];
       this.mypile = [];
@@ -449,15 +313,7 @@ export default {
       this.winner = false;
 
       if (disconnect) {
-        this.$pnGetInstance().unsubscribeAll();
-        this.conn = null;
-        this.peer = null;
-        this.inputLobby = null;
-        this.isHosting = false;
-        this.players = [];
-        this.whoami = null;
-        document.title = 'Papayagrams';
-        this.sound.play('zip');
+        this.dcGame();
       } else {
         this.shuffle(true);
         if (this.whoami.id === 'test-mode') {
@@ -474,199 +330,6 @@ export default {
       const n = Math.floor(Math.random() * Math.floor(8));
       const nn = Math.floor(Math.random() * Math.floor(8));
       return `${this.colors[n]} ${this.fruits[nn]}`;
-    },
-    shuffle(fresh = false) {
-      if (fresh) {
-        Object.keys(this.letters).forEach((letter) => {
-          for (let i = 0; i < this.letters[letter]; i += 1) {
-            this.pile.push({
-              letter,
-              id: `${letter}-${i}`,
-            });
-          }
-        });
-
-        this.sound.play('shuffle');
-      }
-
-      // Durstenfled shuffle
-      for (let i = this.pile.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [this.pile[i], this.pile[j]] = [this.pile[j], this.pile[i]];
-      }
-    },
-    async split() {
-      // Send player list to everyone on split
-      if (this.isHosting) this.send({ key: 'split', data: this.players });
-
-      // Get the same array?
-      this.players.sort((a, b) => {
-        if (a.id < b.id) return -1;
-        if (a.id > b.id) return 1;
-        // names must be equal
-        return 0;
-      });
-
-      let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
-      if (this.players.length >= 7) count = 11;
-
-      // Testing modes
-      if (this.players.length === 1) count = 10;
-      if (this.players.length === 2 && this.env) {
-        this.pile.splice(0, 120);
-        count = 10;
-      }
-
-      const me = this.whoami.id;
-      this.players.forEach((p) => {
-        if (p.id === me) {
-          for (let i = 0; i < count; i += 1) {
-            this.mypile.push(this.pile.pop());
-          }
-        } else {
-          if (!this.otherpiles[p]) this.otherpiles[p] = [];
-          for (let i = 0; i < count; i += 1) {
-            this.otherpiles[p].push(this.pile.pop());
-          }
-        }
-      });
-
-      await this.$nextTick();
-
-      // Fix scroll area so we can't jack it up later
-      const myScroll = document.querySelector('.scroll');
-      this.scrollArea = `height: ${myScroll.offsetHeight}px; width: ${myScroll.offsetWidth}px`;
-
-      document.title = `Papayagrams (${this.pile.length})`;
-    },
-    peel(receive = false) {
-      this.sound.play('peel');
-      this.peeling = true;
-
-      this.players.forEach((p) => {
-        if (p.id === this.whoami.id) {
-          this.mypile.push(this.pile.pop());
-        } else {
-          this.otherpiles[p].push(this.pile.pop());
-        }
-      });
-
-      setTimeout(() => {
-        this.peeling = false;
-      }, 1000);
-
-      if (!receive) this.send({ key: 'peel', data: true });
-      document.title = `Papayagrams (${this.pile.length})`;
-    },
-    dumpLetter(data, receive = false) {
-      this.sound.play('dump');
-
-      if (receive) {
-        this.pile = [...data];
-      } else {
-        const index = data.index ?? null;
-        const board = data.board ?? null;
-        const dumped = this[board ? 'myboard' : 'mypile'][index];
-
-        // Grab 3
-        this.mypile.push(this.pile.pop());
-        this.mypile.push(this.pile.pop());
-        this.mypile.push(this.pile.pop());
-
-        // Put it back
-        this.pile.push(dumped);
-        this.shuffle();
-
-        // Delete it
-        this[board ? 'myboard' : 'mypile'].splice(index, 1);
-
-        this.dumpMode = false;
-
-        // Now tell everyone to update their pile
-        this.send({
-          key: 'dump',
-          data: this.pile,
-        });
-      }
-
-      document.title = `Papayagrams (${this.pile.length})`;
-    },
-    placeLetter(data) {
-      const { key: index, el } = data;
-      const scroll = this.$refs.playerScroll.getBoundingClientRect();
-      const tile = el.getBoundingClientRect();
-      const x = this.roundTo(tile.x - scroll.x, 40); // x position within the element.
-      const y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
-
-      const newLetter = this.mypile.splice(index, 1);
-      this.$set(this.myboardPos, newLetter[0].id, [x, y]);
-      this.myboard.push(...newLetter);
-      this.sound.play('place');
-    },
-    papaya(receive = false) {
-      if (!receive) {
-        const board = [];
-        this.$children.forEach((c) => {
-          if (c.letter) {
-            board.push({
-              pos: [c.$children[0].left, c.$children[0].top],
-              letter: c.letter,
-            });
-          }
-        });
-
-        const papaya = {
-          key: 'papaya',
-          data: {
-            who: this.whoami,
-            board,
-            scrollArea: this.scrollArea,
-          },
-        };
-
-        this.send(papaya);
-
-        this.winner = this.whoami;
-      } else {
-        this.dboard = receive.board;
-        this.scrollAreaWinner = receive.scrollArea;
-        this.winner = receive.who;
-      }
-
-      this.finished = true;
-    },
-    rotten() {
-      // If I AM rotten, start rotting
-      if (this.winner.id === this.whoami.id) {
-        this.rotting(this.whoami);
-      }
-
-      // Let everyone know something is rotten
-      this.send({ key: 'rotten', data: this.winner });
-    },
-    rotting(who) {
-      // Don't rot if you aren't the fake winner
-      if (who.id !== this.whoami.id) return false;
-
-      // The fake winner now clears his board and sends his pile back
-      this.send({ key: 'ilied', data: this.myboard });
-      this.winner = false;
-      this.mypile = [];
-      this.myboard = [];
-      this.dboard = [];
-
-      return true;
-    },
-    rotPlayer(board) {
-      // Add all the pieces of rotten papaya back into pile
-      board.forEach((tile) => {
-        this.pile.push(tile);
-      });
-
-      this.winner = false;
-      this.finished = false;
-      this.scrollAreaWinner = false;
-      document.title = `Papayagrams (${this.pile.length})`;
     },
     roundTo(num, r) {
       const resto = num % r;
@@ -719,20 +382,6 @@ export default {
         this.debug(`Moving tile [${c.letter.letter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
         this.$set(this.myboardPos, c.letter.id, [newX, newY]);
       });
-    },
-    send(message) {
-      // Don't send stuff if you start a solo game
-      if (this.players.length === 1 && this.pile.length < 144) return false;
-
-      this.$pnPublish({
-        channel: `papaya${this.lobby}`,
-        message,
-      },
-      (status, response) => {
-        this.debug('Published:', status, response);
-      });
-
-      return true;
     },
   },
   watch: {
