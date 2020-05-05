@@ -175,6 +175,11 @@
         >Dump</button>
       </aside>
     </footer>
+
+    <h6>
+      Created by <a href="https://brianfran.co">Brian Franco</a>.
+      Available on <a href="https://github.com/mastastealth/papayagrams">Github</a>.
+      Inspired by <a href="https://bananagrams.com/games/bananagrams">Bananagrams</a>.</h6>
   </div>
 </template>
 
@@ -200,6 +205,7 @@ export default {
         place: [1635, 300],
         dump: [2160, 300],
         peel: [2590, 700],
+        zip: [3400, 400],
       },
       volume: 0.75,
     });
@@ -451,6 +457,7 @@ export default {
         this.players = [];
         this.whoami = null;
         document.title = 'Papayagrams';
+        this.sound.play('zip');
       } else {
         this.shuffle(true);
         if (this.whoami.id === 'test-mode') {
@@ -1092,5 +1099,15 @@ footer {
       margin-bottom: 5px;
     }
   }
+}
+
+h6 {
+  color: var(--yellow);
+  position: fixed;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  a { color: var(--orange); }
 }
 </style>
