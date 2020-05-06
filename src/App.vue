@@ -91,6 +91,14 @@
             :style="(winner && scrollArea) ? resizeEndBoard(scrollArea) : scrollArea"
             ref="playerScroll"
           >
+            <span
+                v-if="winner"
+                class="fruit"
+                :data-color="whoami.name.split(' ')[0]"
+                :data-fruit="whoami.name.split(' ')[1]"
+                data-isme
+                style="position: absolute; top: 5px; left: 5px;"
+              >{{whoami.name}}</span>
             <Letter
               v-for="(letter, i) in myboard"
               :key="letter.id"
@@ -250,12 +258,6 @@ export default {
     Object.keys(methods).forEach((fn) => {
       this[fn] = methods[fn].bind(this);
     });
-  },
-  mounted() {
-    if (window.location.pathname.length > 1) {
-      this.inputLobby = window.location.pathname.replace('/', '');
-      if (window.location.hash === '#host') { this.host(); } else { this.join(); }
-    }
 
     this.sound = new Howl({
       src: [require('./assets/sfx.mp3')], // eslint-disable-line
@@ -268,6 +270,14 @@ export default {
       },
       volume: 0.75,
     });
+  },
+  mounted() {
+    if (window.location.pathname.length > 1) {
+      this.inputLobby = window.location.pathname.replace('/', '');
+      if (window.location.hash === '#host') {
+        this.host(true, this.inputLobby);
+      } else { this.join(); }
+    }
   },
   data() {
     return {

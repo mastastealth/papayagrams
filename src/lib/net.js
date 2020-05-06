@@ -19,8 +19,8 @@ export default {
     this.players.push(this.whoami);
     document.title = 'Papayagrams - Waiting...';
   },
-  host(online = true) {
-    this.inputLobby = Math.random().toString(36).substr(2, 5).toUpperCase();
+  host(online = true, lobbyName) {
+    this.inputLobby = lobbyName || Math.random().toString(36).substr(2, 5).toUpperCase();
     this.conn = [];
     this.isHosting = true;
     this.shuffle(true);
