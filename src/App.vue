@@ -55,30 +55,40 @@
         </button>
 
         <!-- "Winner" board -->
-        <div class="player iswinner" v-if="finished && dboard.length">
+        <div class="player iswinner" v-if="finished && (winner || Object.keys(dboard).length)">
           <div
             class="winner"
-            :style="scrollAreaWinner"
+            :style="scrollAreaWinner || scrollArea"
           >
-            <Letter
-              v-for="(tile, i) in dboard"
-              :key="i"
-              :letter="tile.letter"
-              :position="tile.pos"
-            />
+            <template v-if="whoami.id === winner.id">
+              <Letter
+                v-for="(letter, i) in myboard"
+                :key="letter.id"
+                :letter=letter
+                :letterKey="i"
+                :position="myboardPos[letter.id]"
+              />
+            </template>
+            <template v-else>
+              <Letter
+                v-for="(tile, i) in dboard.win"
+                :key="i"
+                :letter="tile.letter"
+                :position="tile.pos"
+              />
+            </template>
           </div>
         </div>
 
         <div
           v-if="(mypile.length || myboard.length) && players.length"
           class="player"
-          :data-haswinner="!!winner"
         >
           <!-- Player board -->
           <div
             class="scroll"
-            :data-winner="whoami.id === winner.id"
-            :style="scrollArea"
+            v-if="whoami.id !== winner.id"
+            :style="(winner && scrollArea) ? resizeEndBoard(scrollArea) : scrollArea"
             ref="playerScroll"
           >
             <Letter
@@ -91,6 +101,30 @@
               @dumpLetter="dumpLetter"
             />
           </div>
+
+          <!-- Other player boards -->
+          <template v-if="dboardLen">
+            <div
+              class="scroll others"
+              v-for="player in Object.values(dboard).filter(p => p.board)"
+              :key="player.who.id"
+              :style="player.scrollArea"
+            >
+              <span
+                class="fruit"
+                :data-color="player.who.name.split(' ')[0]"
+                :data-fruit="player.who.name.split(' ')[1]"
+                style="position: absolute; top: 5px; left: 5px;"
+              >{{player.who.name}}</span>
+              <Letter
+                v-for="(letter, i) in player.board"
+                :key="letter.letter.id"
+                :letter=letter.letter
+                :letterKey="i"
+                :position="letter.pos"
+              />
+            </div>
+          </template>
         </div>
 
         <div v-else class="empty">
@@ -99,7 +133,7 @@
 
             <template v-if="!isHosting">
               <input type="text" v-model="inputLobby" maxlength="5">
-              <button @click="join">Join</button>
+              <button @click="join" :disabled="!inputLobby">Join</button>
             </template>
 
             <button
@@ -282,7 +316,7 @@ export default {
       colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'white', 'black'],
       fruits: ['apple', 'pear', 'banana', 'melon', 'berry', 'lemon', 'lime', 'papaya', 'kiwi'],
       peeling: false,
-      dboard: [],
+      dboard: {},
       finished: false,
       dumpMode: false,
       lastDrop: null,
@@ -296,6 +330,7 @@ export default {
   computed: {
     env() { return process.env.NODE_ENV; },
     lobby() { return this.inputLobby?.toUpperCase() || ''; },
+    dboardLen() { return Object.keys(this.dboard).length; },
   },
   methods: {
     greeting() {
@@ -396,6 +431,13 @@ export default {
         this.debug(`Moving tile [${c.letter.letter}] at ${realX}, ${realY} to ${newX}, ${newY}`, c);
         this.$set(this.myboardPos, c.letter.id, [newX, newY]);
       });
+    },
+    resizeEndBoard(css) {
+      console.log(css);
+      const w = parseInt(css.slice(22).split('px')[0], 10);
+      const mw = (this.$el.querySelector('main').offsetWidth) * 0.35;
+      const scale = (mw / w < 1) ? `transform: scale(${mw / w})` : '';
+      return `${css}${css.endsWith(';') ? '' : '; '} ${scale}`;
     },
   },
   watch: {
@@ -563,7 +605,12 @@ main {
 .squad {
   margin-bottom: 10px;
 
-  .fruit {
+  .letter {
+    margin: 2px;
+  }
+}
+
+.fruit {
     border: 1px solid black;
     border-radius: 3px;
     color: white;
@@ -620,11 +667,6 @@ main {
       background: #222;
     }
   }
-
-  .letter {
-    margin: 2px;
-  }
-}
 
 .letter {
   background: var(--white);
@@ -732,6 +774,18 @@ main {
     width: 60%;
 
     > div { box-shadow: 0 0 10px rgb(5, 66, 1); }
+
+    // Loser boards on the right side
+    + .player {
+      padding: 10px;
+      padding-right: 0;
+      width: 40%;
+    }
+
+    + .player > .scroll {
+      justify-self: flex-start;
+      transform-origin: left center;
+    }
   }
 }
 
@@ -772,7 +826,7 @@ footer {
 h6 {
   color: var(--yellow);
   position: fixed;
-  bottom: 15px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
 

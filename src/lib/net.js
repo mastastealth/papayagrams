@@ -124,6 +124,15 @@ export default {
         this.resetGame(false, true);
         this.pile = [...data.data];
         break;
+      case 'boards':
+        this.$set(
+          this.dboard,
+          data.data.who.id,
+          Object.assign(data.data, {
+            scrollArea: this.resizeEndBoard(data.data.scrollArea),
+          }),
+        );
+        break;
       default:
         break;
     }

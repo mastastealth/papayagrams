@@ -36,6 +36,10 @@ export default {
 
     // Testing modes
     if (this.players.length === 1) count = 10;
+    if (this.players.length === 3 && this.env) {
+      this.pile.splice(0, 110);
+      count = 10;
+    }
     if (this.players.length === 2 && this.env) {
       this.pile.splice(0, 120);
       count = 10;
@@ -131,17 +135,9 @@ export default {
     this.sound.play('place');
   },
   papaya(receive = false) {
-    if (!receive) {
-      const board = [];
-      this.$children.forEach((c) => {
-        if (c.letter) {
-          board.push({
-            pos: [c.$children[0].left, c.$children[0].top],
-            letter: c.letter,
-          });
-        }
-      });
+    const board = this.getBoard();
 
+    if (!receive) {
       const papaya = {
         key: 'papaya',
         data: {
@@ -155,9 +151,17 @@ export default {
 
       this.winner = this.whoami;
     } else {
-      this.dboard = receive.board;
+      this.dboard.win = receive.board;
       this.scrollAreaWinner = receive.scrollArea;
       this.winner = receive.who;
+      this.send({
+        key: 'boards',
+        data: {
+          who: this.whoami,
+          board,
+          scrollArea: this.scrollArea,
+        },
+      });
     }
 
     this.finished = true;
@@ -206,5 +210,18 @@ export default {
     this.finished = false;
     this.scrollAreaWinner = false;
     document.title = `Papayagrams (${this.pile.length})`;
+  },
+  getBoard() {
+    const board = [];
+    this.$children.forEach((c) => {
+      if (c.letter && c.position) {
+        board.push({
+          pos: [c.$children[0].left, c.$children[0].top],
+          letter: c.letter,
+        });
+      }
+    });
+
+    return board;
   },
 };
