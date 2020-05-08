@@ -49,6 +49,7 @@
             v-for="(letter, i) in greeting()"
             :key="i"
             :style="`animation-delay: ${50 * i}ms`"
+            v-once
           >
             {{letter}}
           </span>
@@ -134,12 +135,20 @@
 
         <div v-else class="empty">
           <div v-if="!conn || mypile.length">
-            <button @click="host">Host</button>
+            <input
+              type="text"
+              class="customName"
+              v-model="customName"
+              maxlength="15"
+              placeholder="Enter nickname..."
+            >
 
             <template v-if="!isHosting">
               <input type="text" v-model="inputLobby" maxlength="5">
               <button @click="join" :disabled="!inputLobby">Join</button>
             </template>
+
+            <button @click="host">Host</button>
 
             <button
               v-if="env === 'development'"
@@ -285,6 +294,7 @@ export default {
       peer: null,
       conn: null,
       inputLobby: null,
+      customName: null,
       isHosting: false,
       players: [],
       letterTEST: { A: 5, B: 4, C: 1 },
@@ -638,6 +648,23 @@ main {
 
   &[data-isme]:before { content: '🌟'; margin-right: 5px; }
 
+  &:nth-of-type(1) {
+    background: var(--red);
+  }
+
+  &:nth-of-type(2) {
+    background: var(--orange);
+  }
+
+  &:nth-of-type(3) {
+    background: var(--yellow);
+  }
+
+  &:nth-of-type(4) {
+    background: var(--green);
+    border: 1px solid darkgreen;
+  }
+
   &[data-notwinner] {
     border-color: #999 !important;
     background: #CCC !important;
@@ -743,6 +770,11 @@ main {
   input {
     text-align: center;
     text-transform: uppercase;
+
+    &.customName {
+      margin-bottom: 50px;
+      text-transform: inherit;
+    }
   }
 
   button {

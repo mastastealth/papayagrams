@@ -12,7 +12,7 @@ export default {
     this.$pnGetStatus(this.gotStatus);
 
     this.whoami = {
-      name: this.makeName(),
+      name: this.customName || this.makeName(),
       id: this.$pnGetInstance().getUUID(),
     };
 
