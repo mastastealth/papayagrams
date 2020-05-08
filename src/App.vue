@@ -196,12 +196,12 @@
 
         <template v-if="!mypile.length && myboard.length > 0">
           <button
-            v-if="pile.length >= players.length"
+            v-if="pile.length >= activePlayers.length"
             @click="peel(false)"
             :disabled="peeling"
           >Peel</button>
           <button
-            v-if="pile.length < players.length && !finished"
+            v-if="pile.length < activePlayers.length && !finished"
             @click="papaya(false)"
           >Papaya</button>
         </template>
@@ -342,6 +342,7 @@ export default {
     env() { return process.env.NODE_ENV; },
     lobby() { return this.inputLobby?.toUpperCase() || ''; },
     dboardLen() { return Object.keys(this.dboard).length; },
+    activePlayers() { return this.players.filter((p) => !this.losers.includes(p.id)); },
   },
   methods: {
     greeting() {

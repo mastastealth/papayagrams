@@ -209,6 +209,7 @@ export default {
     this.winner = false;
     this.finished = false;
     this.scrollAreaWinner = false;
+    this.dboard = {};
     document.title = `Papayagrams (${this.pile.length})`;
   },
   getBoard() {

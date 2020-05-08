@@ -20,7 +20,8 @@ export default {
     document.title = 'Papayagrams - Waiting...';
   },
   host(online = true, lobbyName) {
-    this.inputLobby = lobbyName || Math.random().toString(36).substr(2, 5).toUpperCase();
+    const randomLobby = Math.random().toString(36).substr(2, 5).toUpperCase();
+    if (!this.inputLobby) this.inputLobby = lobbyName || randomLobby;
     this.conn = [];
     this.isHosting = true;
     this.shuffle(true);
