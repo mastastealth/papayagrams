@@ -1,13 +1,18 @@
 <template>
-  <vue-draggable-resizable v-if="safeLetter" :data-letter="safeLetter"
-    class="letter" :data-boardtile="position ? true : false"
+  <vue-draggable-resizable
+    v-if="safeLetter"
+    class="letter"
+    :data-letter="safeLetter"
+    :data-boardtile="position ? true : false"
     :w="40" :h="40"
     :x="posX" :y="posY"
     :grid="position ? grid : [1,1]"
     :resizable="false"
     @dragstop="fakeClick"
   >
-    {{safeLetter}}
+    <span @dblclick="$emit('backHand', { a: letter || letterData, i: letterKey })">
+      {{safeLetter}}
+    </span>
   </vue-draggable-resizable>
 </template>
 
@@ -73,6 +78,8 @@ export default {
   line-height: 40px;
   margin: 0;
   width: 40px;
+
+  span { display: block; }
 }
 
 [data-boardtile] {

@@ -133,6 +133,12 @@ export default {
           }),
         );
         break;
+      case 'kick':
+        if (data.data === this.whoami.id) this.dcGame();
+        setTimeout(() => {
+          this.players = this.players.filter((p) => p.id !== data.data);
+        }, 500);
+        break;
       default:
         break;
     }
@@ -182,5 +188,13 @@ export default {
     this.whoami = null;
     document.title = 'Papayagrams';
     this.sound.play('zip');
+  },
+  kick(player) {
+    this.send({
+      key: 'kick',
+      data: player,
+    });
+
+    this.players = this.players.filter((p) => p.id !== player);
   },
 };

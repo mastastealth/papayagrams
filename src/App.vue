@@ -34,7 +34,14 @@
             :data-isme="whoami.id == player.id"
             :data-winner="winner.id == player.id"
             :data-notwinner="winner && winner.id !== player.id"
-          >{{player.name}}</span>
+          >
+            {{player.name}}
+            <span
+              v-if="isHosting && player.id !== whoami.id"
+              @click="kick(player.id)"
+              class="close"
+            >×</span>
+          </span>
         </template>
         <template v-else>
           <span
@@ -60,23 +67,12 @@
             class="winner"
             :style="scrollAreaWinner || scrollArea"
           >
-            <template v-if="whoami.id === winner.id">
-              <Letter
-                v-for="(letter, i) in myboard"
-                :key="letter.id"
-                :letter=letter
-                :letterKey="i"
-                :position="myboardPos[letter.id]"
-              />
-            </template>
-            <template v-else>
-              <Letter
-                v-for="(tile, i) in dboard.win"
-                :key="i"
-                :letter="tile.letter"
-                :position="tile.pos"
-              />
-            </template>
+            <Letter
+              v-for="(tile, i) in dboard.win"
+              :key="i"
+              :letter="tile.letter"
+              :position="tile.pos"
+            />
           </div>
         </div>
 
@@ -107,6 +103,7 @@
               :dumpMode="dumpMode"
               :position="myboardPos[letter.id]"
               @dumpLetter="dumpLetter"
+              @backHand="backHand"
             />
           </div>
 
@@ -278,6 +275,10 @@ export default {
         this.host(true, this.inputLobby);
       } else { this.join(); }
     }
+
+    window.addEventListener('beforeunload', () => {
+      this.dcGame();
+    }, false);
   },
   data() {
     return {
@@ -360,7 +361,7 @@ export default {
       if (this.env === 'development') { console.log(...msg); }
     },
     resetGame(disconnect = false, receive = false) {
-      this.dboard = [];
+      this.dboard = {};
       this.myboard = [];
       this.mypile = [];
       this.myboardPos = {};
@@ -449,6 +450,10 @@ export default {
       const scale = (mw / w < 1) ? `transform: scale(${mw / w})` : '';
       return `${css}${css.endsWith(';') ? '' : '; '} ${scale}`;
     },
+    backHand(letter) {
+      this.myboard.splice(letter.i, 1);
+      this.mypile.push(letter.a);
+    },
   },
   watch: {
     pile() {
@@ -481,6 +486,7 @@ export default {
 
 html, body {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -621,62 +627,73 @@ main {
 }
 
 .fruit {
-    border: 1px solid black;
-    border-radius: 3px;
-    color: white;
-    display: inline-block;
-    margin-right: 3px;
-    padding: 5px 10px;
-    text-transform: uppercase;
+  border: 1px solid black;
+  border-radius: 3px;
+  color: white;
+  display: inline-block;
+  margin-right: 3px;
+  padding: 5px 10px;
+  text-transform: uppercase;
 
-    &[data-isme]:after { content: '🌟'; margin-left: 5px; }
+  &[data-isme]:before { content: '🌟'; margin-right: 5px; }
 
-    &[data-notwinner] {
-      border-color: #999 !important;
-      background: #CCC !important;
-      color: #999 !important;
-    }
-
-    &[data-color="red"] {
-      background: var(--red);
-    }
-
-    &[data-color="orange"] {
-      background: var(--orange);
-    }
-
-    &[data-color="yellow"] {
-      background: var(--yellow);
-    }
-
-    &[data-color="green"] {
-      background: var(--green);
-      border: 1px solid darkgreen;
-    }
-
-    &[data-color="blue"] {
-      background: var(--blue);
-      border: 1px solid darkblue;
-    }
-
-    &[data-color="purple"] {
-      background: var(--purple);
-    }
-
-    &[data-color="pink"] {
-      background: var(--pink);
-    }
-
-    &[data-color="white"] {
-      background: white;
-      border: 1px solid #CCC;
-      color: #666;
-    }
-
-    &[data-color="black"] {
-      background: #222;
-    }
+  &[data-notwinner] {
+    border-color: #999 !important;
+    background: #CCC !important;
+    color: #999 !important;
   }
+
+  &[data-color="red"] {
+    background: var(--red);
+  }
+
+  &[data-color="orange"] {
+    background: var(--orange);
+  }
+
+  &[data-color="yellow"] {
+    background: var(--yellow);
+  }
+
+  &[data-color="green"] {
+    background: var(--green);
+    border: 1px solid darkgreen;
+  }
+
+  &[data-color="blue"] {
+    background: var(--blue);
+    border: 1px solid darkblue;
+  }
+
+  &[data-color="purple"] {
+    background: var(--purple);
+  }
+
+  &[data-color="pink"] {
+    background: var(--pink);
+  }
+
+  &[data-color="white"] {
+    background: white;
+    border: 1px solid #CCC;
+    color: #666;
+  }
+
+  &[data-color="black"] {
+    background: #222;
+  }
+
+  .close {
+    background: rgba(0,0,0, 0.2);
+    border-radius: 100%;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 16px;
+    line-height: 19px;
+    text-align: center;
+    width: 19px;
+  }
+}
 
 .letter {
   background: var(--white);

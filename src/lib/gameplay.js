@@ -148,7 +148,7 @@ export default {
       };
 
       this.send(papaya);
-
+      this.dboard.win = board;
       this.winner = this.whoami;
     } else {
       this.dboard.win = receive.board;
