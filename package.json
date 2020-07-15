@@ -11,6 +11,7 @@
     "body-scroll-lock": "^3.0.2",
     "core-js": "^3.6.4",
     "howler": "^2.1.3",
+    "pf-sowpods": "^1.2.1",
     "pubnub-vue": "^1.0.1",
     "vue": "^2.6.11",
     "vue-draggable-resizable": "^2.1.2"

@@ -5,20 +5,15 @@
       <h1>Papayagrams</h1>
 
       <aside v-if="conn || this.pile.length">
-        <span v-if="lobby"><strong>{{lobby}}</strong> - </span>
-        <span @click="showDictionary = !showDictionary" class="pilecount" :class="pshake">
+        <span class="dict" :class="{ valid:validWord }" :data-word="checkingWord">
+          <input type="text" placeholder="Check word..." @keyup.enter="checkWord">
+        </span>
+        <span v-if="lobby"><strong>{{lobby}}</strong></span>
+        <span class="pilecount" :class="pshake">
           <span class="letter">A</span> × {{pile.length}}
         </span>
       </aside>
     </header>
-
-    <!-- Hacky iframe for now, maybe use a proper API if this becomes bigger? -->
-    <iframe
-      v-if="showDictionary"
-      class="dic"
-      src="//scrabble.hasbro.com/en-us/tools#dictionary"
-      frameborder="0" scrolling="no"
-    ></iframe>
 
     <main>
       <!-- Header bar with the player names or greeting -->
@@ -180,7 +175,7 @@
       </div>
     </main>
 
-    <footer v-if="players.length > 0 ">
+    <footer v-if="players.length > 0">
       <aside class="hand" v-if="!finished">
         <Letter
           v-for="(letter, i) in mypile"
@@ -249,6 +244,8 @@ import Letter from './components/Letter.vue';
 import gameplay from './lib/gameplay';
 import net from './lib/net';
 
+const sow = require('pf-sowpods/src/sowpods');
+
 export default {
   name: 'App',
   components: {
@@ -291,6 +288,7 @@ export default {
   },
   data() {
     return {
+      sow,
       peer: null,
       conn: null,
       inputLobby: null,
@@ -343,9 +341,10 @@ export default {
       lastDrop: null,
       winner: false,
       losers: [],
-      showDictionary: false,
       pshake: false,
       sound: null,
+      checkingWord: null,
+      validWord: false,
     };
   },
   computed: {
@@ -465,6 +464,10 @@ export default {
       this.myboard.splice(letter.i, 1);
       this.mypile.push(letter.a);
     },
+    async checkWord(e) {
+      this.checkingWord = e.target.value === '' ? null : e.target.value;
+      this.validWord = this.sow.verify(e.target.value);
+    },
   },
   watch: {
     pile() {
@@ -538,14 +541,6 @@ button {
   }
 }
 
-.dic {
-  position: fixed;
-  top: 60px; right: 0;
-  height: calc(100vh - 60px);
-  width: 400px;
-  z-index: 1;
-}
-
 header {
   background: var(--green);
   box-shadow: 0 0 5px rgb(100, 66, 3);
@@ -562,7 +557,7 @@ header {
 
   h1 {
     line-height: 60px;
-    @media screen and (max-width: 480px) {
+    @media screen and (max-width: 700px) {
       display: none
     }
   }
@@ -583,6 +578,12 @@ header {
 
     @media screen and (max-width: 480px) {
       font-size: 1em;
+
+      strong {
+        display: inline-block;
+        position: relative;
+        top: -10px;
+      }
     }
   }
 
@@ -593,6 +594,19 @@ header {
 
     &:hover {
       background: var(--orange);
+    }
+
+    @media screen and (max-width: 480px) {
+      word-spacing: -1px;
+      position: absolute;
+      right: 0; bottom: 5px;
+
+      .letter {
+        font-size: 12px;
+        line-height: 17px;
+        height: 17px;
+        width: 17px;
+      }
     }
   }
 
@@ -618,6 +632,26 @@ header {
     background: var(--red);
     content: 'Select a letter to DUMP.';
     transform: translateY(0);
+  }
+
+  .dict {
+    flex-grow: 1;
+    margin-right: 20px;
+    max-width: 180px;
+
+    input {
+      font-size: 0.9em;
+      height: 40px;
+      padding: 0 5px;
+      text-align: left;
+      text-transform: none;
+      width: 100%;
+
+      &:not(:placeholder-shown) { text-transform: uppercase; }
+    }
+
+    &.valid input { border-color: var(--blue); }
+    &[data-word]:not(.valid) input { border-color: var(--red); }
   }
 }
 
@@ -737,6 +771,23 @@ main {
   width: 24px;
 }
 
+input, button {
+  display: block;
+  font-size: 1.5rem;
+  height: 50px;
+  width: 300px;
+}
+
+input {
+  text-align: center;
+  text-transform: uppercase;
+
+  &.customName {
+    margin-bottom: 50px;
+    text-transform: inherit;
+  }
+}
+
 .boards {
   border: 1px solid var(--orange);
   display: flex;
@@ -757,23 +808,6 @@ main {
 
     small {
       font-size: 0.5em;
-    }
-  }
-
-  input, button {
-    display: block;
-    font-size: 1.5rem;
-    height: 50px;
-    width: 300px;
-  }
-
-  input {
-    text-align: center;
-    text-transform: uppercase;
-
-    &.customName {
-      margin-bottom: 50px;
-      text-transform: inherit;
     }
   }
 
