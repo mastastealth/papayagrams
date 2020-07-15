@@ -381,6 +381,7 @@ export default {
       this.scrollAreaWinner = false;
       this.winner = false;
       this.losers = [];
+      this.conn = 'wait';
 
       if (disconnect) {
         this.dcGame();
@@ -454,7 +455,8 @@ export default {
       });
     },
     resizeEndBoard(css) {
-      console.log(css);
+      this.debug(css);
+      if (!css) return false;
       const w = parseInt(css.slice(22).split('px')[0], 10);
       const mw = (this.$el.querySelector('main').offsetWidth) * 0.35;
       const scale = (mw / w < 1) ? `transform: scale(${mw / w})` : '';
@@ -901,6 +903,7 @@ footer {
   }
 
   button {
+    display: inline-block;
     margin: 0 5px;
     padding: 10px 50px;
 

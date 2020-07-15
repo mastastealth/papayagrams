@@ -54,6 +54,7 @@ export default {
       // Add new player that has broadcasted themself
       const newuser = ps.state.iamhere;
       if (!this.players.some((p) => newuser.id === p.id)) this.players.push(newuser);
+      if (this.conn === 'playing') this.losers.push(newuser.id);
       // If host, send the pile of letters to new client
       if (this.isHosting) {
         this.send({

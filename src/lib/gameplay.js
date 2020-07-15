@@ -22,6 +22,7 @@ export default {
   async split() {
     // Send player list to everyone on split
     if (this.isHosting) this.send({ key: 'split', data: this.players });
+    this.conn = 'playing';
 
     // Get the same array?
     this.players.sort((a, b) => {
@@ -68,6 +69,9 @@ export default {
     document.title = `Papayagrams (${this.pile.length})`;
   },
   peel(receive = false) {
+    // Bail out if you don't have data, you probably joined late
+    if (!this.mypile.length && Object.keys(this.otherpiles).length === 0) return false;
+
     this.sound.play('peel');
     this.peeling = true;
 
@@ -88,6 +92,7 @@ export default {
 
     if (!receive) this.send({ key: 'peel', data: true });
     document.title = `Papayagrams (${this.pile.length})`;
+    return true;
   },
   dumpLetter(data, receive = false) {
     this.sound.play('dump');
