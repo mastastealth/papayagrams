@@ -194,7 +194,7 @@
         />
       </aside>
 
-      <aside class="buttons">
+      <aside class="buttons" :class="{ done : finished }">
         <button
           v-if="(
             isHosting && pile.length === 144)
@@ -881,6 +881,23 @@ footer {
       margin-bottom: 5px;
     }
   }
+
+  .done:before {
+    animation: tempBlock 3s;
+    animation-fill-mode: forwards;
+    background: var(--green);
+    content: '';
+    height: 100%;
+    opacity: 0.5;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+  }
+}
+
+@keyframes tempBlock {
+  0%, 99% { top: 0; }
+  100% { top: 100%; }
 }
 
 h6 {
