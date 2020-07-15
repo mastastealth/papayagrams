@@ -9,7 +9,7 @@
           <input type="text" placeholder="Check word..." @keyup.enter="checkWord">
         </span>
         <span v-if="lobby"><strong>{{lobby}}</strong></span>
-        <span class="pilecount" :class="pshake">
+        <span class="pilecount" :class="pshake" @dblclick="resetGame(false)">
           <span class="letter">A</span> × {{pile.length}}
         </span>
       </aside>
@@ -591,6 +591,7 @@ header {
     border-radius: 3px;
     cursor: pointer;
     padding: 5px 10px 5px 5px;
+    user-select: none;
 
     &:hover {
       background: var(--orange);
