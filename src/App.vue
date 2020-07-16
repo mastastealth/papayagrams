@@ -29,6 +29,7 @@
             :data-isme="whoami.id == player.id"
             :data-winner="winner.id == player.id"
             :data-notwinner="winner && winner.id !== player.id"
+            :data-wins="player.score"
           >
             {{player.name}}
             <span
@@ -371,6 +372,7 @@ export default {
       if (this.env === 'development') { console.log(...msg); }
     },
     resetGame(disconnect = false, receive = false) {
+      if (this.winner) this.addWin();
       this.dboard = {};
       this.myboard = [];
       this.mypile = [];
@@ -469,6 +471,19 @@ export default {
     async checkWord(e) {
       this.checkingWord = e.target.value === '' ? null : e.target.value;
       this.validWord = this.sow.verify(e.target.value);
+    },
+    addWin() {
+      // Loop through players
+      this.players.forEach((p, i) => {
+        // Find winner
+        if (p.id === this.winner.id) {
+          if (p.score) {
+            this.players[i].score += 1;
+          } else {
+            this.players[i].score = 1;
+          }
+        }
+      });
     },
   },
   watch: {
@@ -681,23 +696,33 @@ main {
   display: inline-block;
   margin-right: 3px;
   padding: 5px 10px;
+  position: relative;
   text-transform: uppercase;
 
   &[data-isme]:before { content: '🌟'; margin-right: 5px; }
+  &[data-wins]:after {
+    background: black;
+    border-radius: 4px 4px 0 0;
+    content: '👑 ×' attr(data-wins);
+    font-size: 0.65em;
+    padding: 1px 5px;
+    position: absolute;
+    bottom: 100%; right: 3px;
+  }
 
-  &:nth-of-type(1) {
+  &:nth-of-type(1n) {
     background: var(--red);
   }
 
-  &:nth-of-type(2) {
+  &:nth-of-type(2n) {
     background: var(--orange);
   }
 
-  &:nth-of-type(3) {
+  &:nth-of-type(3n) {
     background: var(--yellow);
   }
 
-  &:nth-of-type(4) {
+  &:nth-of-type(4n) {
     background: var(--green);
     border: 1px solid darkgreen;
   }
