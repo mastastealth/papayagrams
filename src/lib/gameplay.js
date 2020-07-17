@@ -131,8 +131,11 @@ export default {
     const { key: index, el } = data;
     const scroll = this.$refs.playerScroll.getBoundingClientRect();
     const tile = el.getBoundingClientRect();
-    const x = this.roundTo(tile.x - scroll.x, 40); // x position within the element.
-    const y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
+    let x = this.roundTo(tile.x - scroll.x, 40); // x position within the element.
+    let y = this.roundTo(tile.y - scroll.y, 40); // y position within the element.
+    // Prevent placement outside of board
+    if (x < 0 || x > scroll.width - 2) x = 0;
+    if (y < 0 || y > scroll.height - 2) y = 0;
 
     const newLetter = this.mypile.splice(index, 1);
     this.$set(this.myboardPos, newLetter[0].id, [x, y]);

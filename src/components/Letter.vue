@@ -6,9 +6,10 @@
     :data-boardtile="position ? true : false"
     :w="40" :h="40"
     :x="posX" :y="posY"
-    :grid="position ? grid : [1,1]"
+    :grid="position ? [40, 40] : [1,1]"
     :resizable="false"
     @dragstop="fakeClick"
+    :onDrag="onDragCallback"
   >
     <span @dblclick="$emit('backHand', { a: letter || letterData, i: letterKey })">
       {{safeLetter}}
@@ -37,18 +38,14 @@ export default {
 
     return true;
   },
-  data() {
-    return {
-      grid: [40, 40],
-    };
-  },
   computed: {
-    posX() { return this.position?.[0] ?? null; },
-    posY() { return this.position?.[1] ?? null; },
+    posX() { return this.x ?? this.position?.[0] ?? null; },
+    posY() { return this.y ?? this.position?.[1] ?? null; },
     safeLetter() { return this.letter?.letter || this.letterData?.letter || null; },
   },
   props: ['letterKey', 'letter', 'letterData', 'dumpMode', 'position'],
   methods: {
+    // When releasing left click on a tile
     fakeClick(x, y) {
       if (this.dumpMode) {
         this.$emit('dumpLetter', {
@@ -56,15 +53,21 @@ export default {
           board: !!this.position,
         });
       }
+
+      // Detects a drag from hand
       if (y < -40 && this.$el.parentNode.classList.contains('hand')) {
         this.$emit('placeLetter', {
           key: this.letterKey,
           el: this.$el,
         });
       }
+    },
+    onDragCallback(x, y) {
+      if (x < 0 || y < 0) return false;
+      const scroll = this.$parent.$refs.playerScroll.getBoundingClientRect();
+      if (x > scroll.width - 2 || y > scroll.height - 2) return false;
 
-      this.x = x;
-      this.y = y;
+      return true;
     },
   },
 };

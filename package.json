@@ -14,7 +14,7 @@
     "pf-sowpods": "^1.2.1",
     "pubnub-vue": "^1.0.1",
     "vue": "^2.6.11",
-    "vue-draggable-resizable": "^2.1.2"
+    "vue-draggable-resizable": "^2.2.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.3.0",
