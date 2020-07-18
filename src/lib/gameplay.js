@@ -32,18 +32,25 @@ export default {
       return 0;
     });
 
-    let count = (this.players.length <= 4) ? 21 : 15; // 5-6 players
-    if (this.players.length >= 7) count = 11;
+    let count = (this.players.length <= 4) ? 21 : 15; // 5 (21 tiles) or 6 (15 tiles) players
+    if (this.players.length >= 7) count = 11; // 7+ players get 11 tiles
 
     // Testing modes
     if (this.players.length === 1) count = 10;
-    if (this.players.length === 3 && this.env) {
-      this.pile.splice(0, 110);
-      count = 10;
-    }
-    if (this.players.length === 2 && this.env) {
-      this.pile.splice(0, 120);
-      count = 10;
+
+    if (this.env) {
+      if (this.players.length === 4) {
+        this.pile.splice(0, 100);
+        count = 10;
+      }
+      if (this.players.length === 3) {
+        this.pile.splice(0, 110);
+        count = 10;
+      }
+      if (this.players.length === 2) {
+        this.pile.splice(0, 120);
+        count = 10;
+      }
     }
 
     const me = this.whoami.id;
@@ -178,11 +185,7 @@ export default {
     this.finished = true;
   },
   rotten() {
-    // If I AM rotten, start rotting
-    if (this.winner.id === this.whoami.id) {
-      this.rotting(this.whoami);
-    }
-
+    this.rotvote.push(this.whoami.id);
     // Let everyone know something is rotten
     this.send({ key: 'rotten', data: this.winner });
   },

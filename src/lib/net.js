@@ -128,7 +128,9 @@ export default {
         this.papaya(data.data);
         break;
       case 'rotten':
-        this.rotting(data.data);
+        this.rotvote.push(d.publisher); // Add to vote
+        // All but 1 need to vote for rotting
+        if (this.rotvote.length >= this.activePlayers.length - 1) { this.rotting(data.data); }
         break;
       case 'ilied':
         this.rotPlayer(data.data);

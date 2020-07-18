@@ -4,12 +4,12 @@
       <img src="logo.svg" alt="🇵" @click="resetGame">
       <h1>
         <span>Papayagrams</span>
-        <small v-if="lobby && whoami.id !== 'test-mode'">/ {{lobby}}</small>
+        <small v-if="lobby && whoami && whoami.id !== 'test-mode'">/ {{lobby}}</small>
       </h1>
 
       <aside v-if="conn || this.pile.length">
         <span class="dict" :class="{ valid:validWord }" :data-word="checkingWord">
-          <input type="text" placeholder="Check word..." @keyup.enter="checkWord">
+          <input type="text" placeholder="Check word..." @keyup="checkWord">
         </span>
 
         <span class="pilecount" :class="pshake" @dblclick="resetGame(false)">
@@ -230,7 +230,9 @@
         <button
           v-if="finished && (myboard.length || mypile.length) && whoami.id !== winner.id"
           style="background: var(--red);"
+          :disabled="this.rotvote.includes(whoami.id)"
           @click="rotten"
+          :data-rotcount="this.rotvote.length"
         >Rotten Papaya</button>
 
         <button
@@ -356,6 +358,7 @@ export default {
       sound: null,
       checkingWord: null,
       validWord: false,
+      rotvote: [],
     };
   },
   computed: {
@@ -395,6 +398,7 @@ export default {
       this.winner = false;
       this.losers = [];
       this.conn = 'wait';
+      this.rotvote = [];
 
       if (disconnect) {
         this.dcGame();
@@ -480,8 +484,11 @@ export default {
       this.mypile.push(letter.a);
     },
     async checkWord(e) {
+      // Check for enter or cleared input
+      if (e.keyCode !== 13 && e.target.value !== '') return false;
       this.checkingWord = e.target.value === '' ? null : e.target.value;
       this.validWord = this.sow.verify(e.target.value);
+      return true;
     },
     addWin() {
       // Loop through players
@@ -683,8 +690,8 @@ header {
       &:not(:placeholder-shown) { text-transform: uppercase; }
     }
 
-    &.valid input { border-color: var(--blue); }
-    &[data-word]:not(.valid) input { border-color: var(--red); }
+    &.valid input { background: var(--blue); color: white; }
+    &[data-word]:not(.valid) input { background: var(--red); color: white; }
 
     @media screen and (max-width: 480px) {
       margin-right: 5px;
@@ -705,6 +712,10 @@ main {
 
   .letter {
     margin: 2px;
+  }
+
+  @media screen and (max-width: 480px) {
+    .fruit { font-size: 0.7em; }
   }
 }
 
@@ -908,7 +919,18 @@ input {
     }
 
     &.lost {
-      grid-template-columns: 1fr 1fr 1fr;
+      display: flex;
+      > .scroll {
+        flex-shrink: 0;
+
+        &:nth-child(2) { left: -10%; }
+        &:nth-child(3) { left: -20%; }
+        &:nth-child(4) { left: -30%; }
+        &:nth-child(5) { left: -40%; }
+        &:nth-child(6) { left: -60%; }
+        &:nth-child(7) { left: -70%; }
+        &:nth-child(8) { left: -80%; }
+      }
     }
   }
 
@@ -957,12 +979,22 @@ footer {
   }
 
   button {
+    cursor: pointer;
     display: inline-block;
     margin: 0 5px;
     padding: 10px 50px;
 
+    &:hover {
+      filter: brightness(120%);
+    }
+
     @media screen and (max-width: 480px) {
       padding: 10px 30px;
+    }
+
+    &[data-rotcount]:not([data-rotcount="0"]):after {
+      content: '(' attr(data-rotcount) ')';
+      margin-left: 5px;
     }
   }
 
