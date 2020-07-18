@@ -143,6 +143,7 @@ export default {
     this.sound.play('place');
   },
   papaya(receive = false) {
+    this.dboard = {};
     const board = this.getBoard();
 
     if (!receive) {
@@ -162,14 +163,16 @@ export default {
       this.dboard.win = receive.board;
       this.scrollAreaWinner = receive.scrollArea;
       this.winner = receive.who;
-      this.send({
-        key: 'boards',
-        data: {
-          who: this.whoami,
-          board,
-          scrollArea: this.scrollArea,
-        },
-      });
+      if (!this.iamloser) {
+        this.send({
+          key: 'boards',
+          data: {
+            who: this.whoami,
+            board,
+            scrollArea: this.scrollArea,
+          },
+        });
+      }
     }
 
     this.finished = true;
@@ -201,7 +204,7 @@ export default {
     this.winner = false;
     this.mypile = [];
     this.myboard = [];
-    this.dboard = [];
+    this.dboard = {};
 
     return true;
   },
@@ -213,17 +216,18 @@ export default {
       this.pile.push(tile);
     });
 
-    this.losers.push(who.id);
+    if (!this.losers.includes(who.id)) this.losers.push(who.id);
     this.winner = false;
     this.finished = false;
     this.scrollAreaWinner = false;
     this.dboard = {};
     document.title = `Papayagrams (${this.pile.length})`;
+    if (this.losers.length === 1) this.liveUpdate();
   },
   getBoard() {
     const board = [];
     this.$children.forEach((c) => {
-      if (c.letter && c.position) {
+      if (c.myLetter && c.letter && c.position) {
         board.push({
           pos: [c.$children[0].left, c.$children[0].top],
           letter: c.letter,
@@ -232,5 +236,26 @@ export default {
     });
 
     return board;
+  },
+  liveUpdate() {
+    if (this.winner || this.iamloser) return false;
+
+    const board = this.getBoard();
+    this.send({
+      key: 'watchme',
+      data: {
+        who: this.whoami,
+        board,
+        scrollArea: this.scrollArea,
+      },
+    });
+
+    if (this.losers) {
+      setTimeout(() => {
+        this.liveUpdate();
+      }, 5000);
+    }
+
+    return true;
   },
 };

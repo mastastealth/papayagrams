@@ -59,7 +59,10 @@
         </button>
 
         <!-- "Winner" board -->
-        <div class="player iswinner" v-if="finished && (winner || Object.keys(dboard).length)">
+        <div
+          class="player iswinner"
+          v-if="finished && winner && dboard.win"
+        >
           <div
             class="winner"
             :style="scrollAreaWinner || scrollArea"
@@ -69,18 +72,20 @@
               :key="i"
               :letter="tile.letter"
               :position="tile.pos"
+              :myLetter="whoami.id === winner.id"
             />
           </div>
         </div>
 
         <div
-          v-if="(mypile.length || myboard.length) && players.length"
+          v-if="players.length"
           class="player"
+          :class="losers.includes(whoami.id) ? 'lost' : ''"
         >
-          <!-- Player board -->
+          <!-- Player board (during normal play) -->
           <div
             class="scroll"
-            v-if="whoami.id !== winner.id"
+            v-if="(mypile.length || myboard.length) && whoami.id !== winner.id"
             :style="(winner && scrollArea) ? resizeEndBoard(scrollArea) : scrollArea"
             ref="playerScroll"
           >
@@ -99,13 +104,14 @@
               :letterKey="i"
               :dumpMode="dumpMode"
               :position="myboardPos[letter.id]"
+              :myLetter="true"
               @dumpLetter="dumpLetter"
               @backHand="backHand"
             />
           </div>
 
           <!-- Other player boards -->
-          <template v-if="dboardLen">
+          <template v-if="dboardLen && (winner || losers.includes(whoami.id))">
             <div
               class="scroll others"
               v-for="player in Object.values(dboard).filter(p => p.board)"
@@ -352,6 +358,7 @@ export default {
     env() { return process.env.NODE_ENV; },
     lobby() { return this.inputLobby?.toUpperCase() || ''; },
     dboardLen() { return Object.keys(this.dboard).length; },
+    iamloser() { return this.losers.includes(this.whoami.id); },
     activePlayers() { return this.players.filter((p) => !this.losers.includes(p.id)); },
   },
   methods: {
@@ -703,6 +710,7 @@ main {
   &[data-wins]:after {
     background: black;
     border-radius: 4px 4px 0 0;
+    color: white;
     content: '👑 ×' attr(data-wins);
     font-size: 0.65em;
     padding: 1px 5px;
@@ -882,6 +890,10 @@ input {
       min-width: 481px;
       position: relative;
     }
+
+    &.lost {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
   }
 
   .winner, [data-winner] {
@@ -899,6 +911,7 @@ input {
 
     // Loser boards on the right side
     + .player {
+      grid-template-columns: 1fr;
       padding: 10px;
       padding-right: 0;
       width: 40%;

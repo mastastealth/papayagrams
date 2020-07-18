@@ -48,7 +48,7 @@ export default {
     posY() { return this.y ?? this.position?.[1] ?? null; },
     safeLetter() { return this.letter?.letter || this.letterData?.letter || null; },
   },
-  props: ['letterKey', 'letter', 'letterData', 'dumpMode', 'position'],
+  props: ['letterKey', 'letter', 'letterData', 'dumpMode', 'position', 'myLetter'],
   methods: {
     // When releasing left click on a tile
     fakeClick(x, y) {

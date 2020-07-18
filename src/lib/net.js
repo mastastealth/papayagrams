@@ -126,6 +126,7 @@ export default {
         this.resetGame(false, true);
         this.pile = [...data.data];
         break;
+      case 'watchme':
       case 'boards':
         this.$set(
           this.dboard,
