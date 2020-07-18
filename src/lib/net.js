@@ -7,6 +7,7 @@ export default {
     });
 
     this.conn = 'wait';
+    history.replaceState(null, '', `/${this.lobby}`); // eslint-disable-line
     this.$pnGetMessage(`papaya${this.lobby}`, this.gotData);
     this.$pnGetPresence(`papaya${this.lobby}`, this.gotPresence);
     this.$pnGetStatus(this.gotStatus);
@@ -22,9 +23,6 @@ export default {
   host(online = true, lobbyName) {
     const randomLobby = Math.random().toString(36).substr(2, 5).toUpperCase();
     if (!this.inputLobby) this.inputLobby = lobbyName || randomLobby;
-    this.conn = [];
-    this.isHosting = true;
-    this.shuffle(true);
 
     if (online) {
       this.createConnection();
@@ -35,6 +33,7 @@ export default {
         id: 'test-mode',
       };
 
+      this.shuffle(true);
       this.players.push(this.whoami);
       this.pile.splice(0, 130);
     }
@@ -45,11 +44,23 @@ export default {
   gotPresence(ps) {
     this.debug('Presence:', ps);
 
+    if (
+      ps.uuid === this.whoami.id
+      && ps.occupancy === 0
+      && ps.action === 'state-change'
+      && ps.state?.iamhere
+    ) {
+      // I'm the captain now
+      this.conn = 'hosting';
+      this.isHosting = true;
+      this.shuffle(true);
+    }
+
     // Received broadcast
     if (
       ps.uuid !== this.whoami.id
-          && ps.action === 'state-change'
-          && ps.state?.iamhere
+      && ps.action === 'state-change'
+      && ps.state?.iamhere
     ) {
       // Add new player that has broadcasted themself
       const newuser = ps.state.iamhere;
@@ -190,6 +201,7 @@ export default {
     this.players = [];
     this.whoami = null;
     document.title = 'Papayagrams';
+    history.replaceState(null, '', '/'); // eslint-disable-line
     this.sound.play('zip');
   },
   kick(player) {

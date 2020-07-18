@@ -2,13 +2,16 @@
   <div id="app">
     <header :data-peel="peeling" :data-dump="dumpMode">
       <img src="logo.svg" alt="🇵" @click="resetGame">
-      <h1>Papayagrams</h1>
+      <h1>
+        <span>Papayagrams</span>
+        <small v-if="lobby && whoami.id !== 'test-mode'">/ {{lobby}}</small>
+      </h1>
 
       <aside v-if="conn || this.pile.length">
         <span class="dict" :class="{ valid:validWord }" :data-word="checkingWord">
           <input type="text" placeholder="Check word..." @keyup.enter="checkWord">
         </span>
-        <span v-if="lobby"><strong>{{lobby}}</strong></span>
+
         <span class="pilecount" :class="pshake" @dblclick="resetGame(false)">
           <span class="letter">A</span> × {{pile.length}}
         </span>
@@ -25,7 +28,7 @@
             class="fruit animated"
             :class="winner.id == player.id ? 'pulse infinite' : 'bounceIn'"
             :data-color="player.name.split(' ')[0]"
-            :data-fruit="player.name.split(' ')[1]"
+            :data-fruit="customName ? customName : player.name.split(' ')[1]"
             :data-isme="whoami.id == player.id"
             :data-winner="winner.id == player.id"
             :data-notwinner="winner && winner.id !== player.id"
@@ -124,6 +127,7 @@
                 :data-fruit="player.who.name.split(' ')[1]"
                 style="position: absolute; top: 5px; left: 5px;"
               >{{player.who.name}}</span>
+
               <Letter
                 v-for="(letter, i) in player.board"
                 :key="letter.letter.id"
@@ -581,8 +585,18 @@ header {
 
   h1 {
     line-height: 60px;
+
+    small {
+      font-size: 0.5em;
+      font-weight: bold;
+    }
+
     @media screen and (max-width: 700px) {
-      display: none
+      flex-shrink: 0;
+      padding-right: 10px;
+
+      span { display: none }
+      small { font-size: 0.4em; }
     }
   }
 
@@ -602,12 +616,6 @@ header {
 
     @media screen and (max-width: 480px) {
       font-size: 1em;
-
-      strong {
-        display: inline-block;
-        position: relative;
-        top: -10px;
-      }
     }
   }
 
@@ -622,9 +630,9 @@ header {
     }
 
     @media screen and (max-width: 480px) {
+      flex-shrink: 0;
+      padding: 0;
       word-spacing: -1px;
-      position: absolute;
-      right: 0; bottom: 5px;
 
       .letter {
         font-size: 12px;
@@ -677,6 +685,10 @@ header {
 
     &.valid input { border-color: var(--blue); }
     &[data-word]:not(.valid) input { border-color: var(--red); }
+
+    @media screen and (max-width: 480px) {
+      margin-right: 5px;
+    }
   }
 }
 
@@ -790,6 +802,10 @@ main {
     line-height: 19px;
     text-align: center;
     width: 19px;
+  }
+
+  @media screen and (max-width: 480px) {
+    .color { display: none; }
   }
 }
 
@@ -984,5 +1000,10 @@ h6 {
   transform: translateX(-50%);
 
   a { color: var(--orange); }
+
+  @media screen and (max-width: 480px) {
+    text-align: center;
+    width: 100%;
+  }
 }
 </style>
