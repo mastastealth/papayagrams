@@ -38,6 +38,11 @@ export default {
 
     return true;
   },
+  data() {
+    return {
+      inhand: true,
+    };
+  },
   computed: {
     posX() { return this.x ?? this.position?.[0] ?? null; },
     posY() { return this.y ?? this.position?.[1] ?? null; },
@@ -60,9 +65,11 @@ export default {
           key: this.letterKey,
           el: this.$el,
         });
+        this.inhand = false;
       }
     },
     onDragCallback(x, y) {
+      if (this.inhand) return true;
       if (x < 0 || y < 0) return false;
       const scroll = this.$parent.$refs.playerScroll.getBoundingClientRect();
       if (x > scroll.width - 2 || y > scroll.height - 2) return false;
